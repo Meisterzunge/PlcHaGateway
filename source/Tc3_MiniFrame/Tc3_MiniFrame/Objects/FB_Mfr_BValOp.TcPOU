@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_BValOp" Id="{d4e00c99-812f-4e9a-873a-795c4610d51c}" SpecialFunc="None">
+    <Declaration><![CDATA[// Binary value for operation.
+FUNCTION_BLOCK FB_Mfr_BValOp EXTENDS FB_Mfr
+VAR_OUTPUT PERSISTENT
+	bVal : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+]]></ST>
+    </Implementation>
+    <Property Name="Value" Id="{7b88f94f-6b1a-44c8-80f0-64eca67382f6}">
+      <Declaration><![CDATA[PROPERTY Value : BOOL]]></Declaration>
+      <Get Name="Get" Id="{c05661de-a6ea-4ecc-91a8-77f9a99a30ed}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Value := bVal;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{f71d70c1-c827-4ae5-8188-9b1630b80315}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bVal := Value;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+  </POU>
+</TcPlcObject>

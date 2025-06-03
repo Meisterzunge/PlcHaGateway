@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_AO" Id="{ab90c7af-e704-46df-86bc-991b631d9689}" SpecialFunc="None">
+    <Declaration><![CDATA[// Analog output.
+FUNCTION_BLOCK FB_Mfr_AO EXTENDS FB_Mfr
+VAR_INPUT
+	{attribute 'parameterUnit':= '%'}
+	fVal : REAL;
+END_VAR
+VAR
+	{region 'Raw data'}
+		nRawData AT %Q* : INT;
+	{endregion}
+END_VAR
+VAR_STAT
+	{attribute 'hide'}
+	fX01 : REAL;
+	{attribute 'hide'}
+	fX02 : REAL;
+END_VAR
+VAR CONSTANT
+	{attribute 'hide'}
+	RAW_MIN : INT := 0;
+	{attribute 'hide'}
+	RAW_MAX : INT := Mfr_Global.MaxInt;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+// Setup conversion parameters:
+// > Fix 0-100%
+fX01 := 0; fX02 := 100;
+
+// Calculate process value:
+nRawData := TO_INT(Scale(fVal, TRUE, fX01, RAW_MIN, fX02, RAW_MAX));
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

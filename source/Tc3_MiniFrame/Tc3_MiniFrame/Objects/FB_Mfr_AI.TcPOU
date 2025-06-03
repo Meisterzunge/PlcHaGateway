@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_AI" Id="{bddda39e-2957-470b-bcee-7c98dc4e372a}" SpecialFunc="None">
+    <Declaration><![CDATA[// Analog input.
+FUNCTION_BLOCK FB_Mfr_AI EXTENDS FB_Mfr
+VAR_OUTPUT
+	fVal : REAL;
+	bError : BOOL;
+END_VAR
+VAR_INPUT CONSTANT
+	bLimit : BOOL := FALSE;
+	eSensor : E_Mfr_MeasuringElement := Mfr_Param.DefaultSensorElement;
+END_VAR
+VAR
+	{region 'Raw data'}
+		nRawStatus AT %I* : UINT;
+		nRawData AT %I* : INT;
+	{endregion}
+	{region 'General'}
+		bOverrange : BOOL; // Wire broken
+		bUnderrange : BOOL; // Short circuit
+	{endregion}
+END_VAR
+VAR_STAT
+	{attribute 'hide'}
+	fY01 : REAL;
+	{attribute 'hide'}
+	fY02 : REAL;
+END_VAR
+VAR CONSTANT
+	{attribute 'hide'}
+	RAW_MIN : INT := Mfr_Global.MinInt;
+	{attribute 'hide'}
+	RAW_MAX : INT := Mfr_Global.MaxInt;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+// Setup conversion parameters:
+CASE (eSensor) OF
+	E_Mfr_MeasuringElement.eNI1000: fY01 := -20; fY02 := 60;
+ELSE
+	fVal := 0; // Not supported!
+	bError := TRUE;
+	RETURN;
+END_CASE
+
+// Check for errors:
+bOverrange := nRawStatus.1;
+bUnderrange := nRawStatus.0;
+bError := (bOverrange OR bUnderrange);
+
+// Calculate process value:
+fVal := Scale(nRawData, bLimit, RAW_MIN, fY01, RAW_MAX, fY02);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

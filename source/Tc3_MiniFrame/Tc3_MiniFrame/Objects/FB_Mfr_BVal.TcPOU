@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_BVal" Id="{a98f154b-fb5f-4f54-8158-bbb27f77b666}" SpecialFunc="None">
+    <Declaration><![CDATA[// Binary value for display.
+FUNCTION_BLOCK FB_Mfr_BVal EXTENDS FB_Mfr
+VAR_INPUT
+	bValue : BOOL;
+END_VAR
+VAR_OUTPUT
+	bVal : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+bVal := bValue;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

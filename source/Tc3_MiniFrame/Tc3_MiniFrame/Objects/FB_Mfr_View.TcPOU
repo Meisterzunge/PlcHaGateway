@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_View" Id="{1e8dc142-ac54-4a17-a957-efb30e95be83}" SpecialFunc="None">
+    <Declaration><![CDATA[// Structured view.
+FUNCTION_BLOCK FB_Mfr_View EXTENDS FB_Mfr
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

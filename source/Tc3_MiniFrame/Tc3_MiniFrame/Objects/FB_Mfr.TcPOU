@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr" Id="{d7bc270f-b594-4835-a756-3388d9df4bc6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_Mfr]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Folder Name="Helper" Id="{fb2c1bb2-c2d3-4d52-8062-6d526d09f824}" />
+    <Method Name="Scale" Id="{4171511f-ef9a-4433-a5ce-2a6ac0e38237}" FolderPath="Helper\">
+      <Declaration><![CDATA[METHOD PROTECTED Scale : REAL
+VAR_INPUT
+	fX			: REAL;
+	bLimit		: BOOL;
+	fX01		: REAL;
+	fY01		: REAL;
+	fX02		: REAL;
+	fY02		: REAL;
+END_VAR
+VAR
+	fSlope		: REAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fSlope := Slope(fX01, fY01, fX02, fY02);
+
+// Y = Y1 + m * (X - X1)
+Scale := (fY01 + fSlope * (fX - fX01));
+
+IF (NOT bLimit) THEN
+	;
+ELSIF (fY02 >= fY01) THEN 
+	Scale := LIMIT(fY01, Scale, fY02);
+ELSE
+	Scale := LIMIT(fY02, Scale, fY01);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Slope" Id="{a8f96dfc-eefa-4e33-91cd-87905c358831}" FolderPath="Helper\">
+      <Declaration><![CDATA[METHOD PROTECTED Slope : REAL
+VAR_INPUT
+	fX01		: REAL;
+	fY01		: REAL;
+	fX02		: REAL;
+	fY02		: REAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Slope := (fY02 - fY01) / (fX02 - fX01);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_MVal" Id="{a05cd932-385d-4d34-940f-fba0651cda31}" SpecialFunc="None">
+    <Declaration><![CDATA[// Multistate value for display.
+FUNCTION_BLOCK FB_Mfr_MVal EXTENDS FB_Mfr
+VAR_INPUT
+	nValue : UDINT;
+END_VAR
+VAR_OUTPUT
+	nVal : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+nVal := nValue;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

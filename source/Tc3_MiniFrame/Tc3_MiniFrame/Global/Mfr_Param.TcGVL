@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="Mfr_Param" Id="{51355aa6-818b-4990-900f-53c437098ad2}" ParameterList="True">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	DefaultSensorElement : E_Mfr_MeasuringElement := E_Mfr_MeasuringElement.eNI1000;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.20">
+	<Project ProjectGUID="{338CF7E8-DFE7-45AC-92D4-C191DC72E7E7}" Target64Bit="true" ShowHideConfigurations="#x6">
+		<Plc>
+			<Project GUID="{7026C6C8-7F5D-4B58-A99C-AC7DAD9CB54E}" Name="Tc3_MiniFrame" PrjFilePath="Tc3_MiniFrame\Tc3_MiniFrame.plcproj" TmcFilePath="Tc3_MiniFrame\Tc3_MiniFrame.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{7B444A6B-3396-1D36-41CE-2C073B7EB870}" TmcPath="Tc3_MiniFrame\Tc3_MiniFrame.tmc">
+					<Name>Tc3_MiniFrame Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+				</Instance>
+			</Project>
+		</Plc>
+	</Project>
+</TcSmProject>

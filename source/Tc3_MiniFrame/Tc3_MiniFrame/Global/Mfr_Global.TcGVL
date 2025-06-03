@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="Mfr_Global" Id="{ae784eca-0d48-4505-aff5-9ff428f830b3}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	NoActivePrio					: UDINT			:= 16#FFFFFFFF;
+END_VAR
+VAR_GLOBAL CONSTANT
+	{region 'Datatype Ranges'}
+		{warning disable C0196}
+		MinInt						: INT			:= 16#8000;
+		MaxInt						: INT			:= 16#7FFF;
+		MinReal						: REAL			:= -3.402823E+38;
+		MaxReal						: REAL			:= 3.402823E+38;
+		MinTime						: TIME			:= TO_TIME(0);
+		MaxTime						: TIME			:= TO_TIME(16#FFFFFFFF);
+		{warning restore C0196}
+	{endregion}
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

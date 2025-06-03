@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_AVal" Id="{d9221667-ca68-4c8b-836d-f8ef185d2e75}" SpecialFunc="None">
+    <Declaration><![CDATA[// Analog value for display.
+FUNCTION_BLOCK FB_Mfr_AVal EXTENDS FB_Mfr
+VAR_INPUT
+	fValue : REAL;
+END_VAR
+VAR_OUTPUT
+	fVal : REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+fVal := fValue;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

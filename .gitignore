@@ -16,7 +16,7 @@ _CompileInfo/
 _Libraries/
 
 # Other files
-*.project.~u
+*.~u
 
 # Library files
 # > Hint: Uncomment if repository shouldn't contain library files.

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_Mfr_MeasuringElement" Id="{17552c17-16aa-48b8-9458-24c0d7706627}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{warning disable C0125}
+TYPE E_Mfr_MeasuringElement :
+(
+	Undefined				:= 0,
+
+	eNI100					:= 1, 
+	eNI120					:= 2, 
+	eNI1000					:= 3, 
+	eNI1000_LS				:= 4, 
+	eNTC1K8					:= 5, 
+	eNTC1K8_TK				:= 6, 
+	eNTC2K2					:= 7, 
+	eNTC3K					:= 8, 
+	eNTC5K					:= 9, 
+	eNTC10K					:= 10,
+	eNTC10KPRE				:= 11,
+	eNTC10K_3204			:= 12,
+	eNTC10KTYP2				:= 13,
+	eNTC10KTYP3				:= 14,
+	eNTC10KDALE				:= 15,
+	eNTC10K3A221			:= 16,
+	eNTC20K					:= 17,
+	eNTC100K				:= 18,
+	ePoti_Resolution_01		:= 19,
+	ePoti_Resolution_1		:= 20,
+	eOutput_10_5000			:= 21,
+	eOutput_10_1200			:= 22,
+	ePT100 					:= 23,
+	ePT200 					:= 24,
+	ePT500 					:= 25,
+	ePT1000					:= 26,
+	
+	First					:= eNI100,
+	Last					:= ePT1000,
+	Count					:= (Last - First + 1)
+) BYTE;
+END_TYPE
+{warning restore C0125}]]></Declaration>
+  </DUT>
+</TcPlcObject>

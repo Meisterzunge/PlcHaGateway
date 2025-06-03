@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_BO" Id="{69f4d597-f9d4-4005-afcf-ff54013c4ba6}" SpecialFunc="None">
+    <Declaration><![CDATA[// Binary output.
+FUNCTION_BLOCK FB_Mfr_BO EXTENDS FB_Mfr
+VAR_INPUT
+	bVal : BOOL;
+END_VAR
+VAR_INPUT CONSTANT
+	bInvert : BOOL := FALSE;
+END_VAR
+VAR
+	{region 'Raw data'}
+		bRawData AT %Q* : BOOL;
+	{endregion}
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+bRawData := (bVal = NOT bInvert);]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
