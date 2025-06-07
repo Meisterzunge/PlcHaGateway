@@ -32,3 +32,22 @@ Supported names are:
   Read value from _TwinCAT PLC_ and write it to _Home Assistant_.
 
 > If undefined, the source is set to `Plc` per default.
+
+## Development
+
+For _visual studio code_ create a `appsettings.Development.json` file to maintain developer settings excluded from the git repository:
+
+```
+{
+    "HomeAssistant": {
+        "Host": "__hass_hostName_or_ipAddress__",
+        "Port": 8123,
+        "Ssl": false,
+        "Token": "__hass_api_token__"
+    },
+    "Plc": {
+        "NetId": "127.0.0.1.1.1",
+        "Port": 851
+    }
+}
+```
