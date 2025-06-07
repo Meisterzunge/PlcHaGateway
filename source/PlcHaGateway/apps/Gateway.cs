@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using NetDaemon.HassModel.Entities;
+using Utilities.Core;
 
 namespace HassModel;
 
@@ -43,31 +44,39 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         catch (Exception ex)
         {
             LogEvent.Ads.LogError(ex, "Failed to establish PLC connection.");
+            throw;
         }
 
-        LogEvent.Gw.LogInformation("Create mappings.");
+        LogEvent.Gw.LogTrace("Creating mappings...");
         try
         {
-            // (BETA) ... create some test mappings until ADS selector is implemented:
-            var entities = ha.GetAllEntities();
-            this.Mappings = new IMapping[] {
-                MappingFactory.CreateMapping(entities.First(e => e.EntityId.Equals("input_number.test_number")))
-            };
+            this.Mappings = MappingFactory.CreateMappings(ha, plc);
+            if (Mappings.IsEmpty())
+                LogEvent.Gw.LogWarning($"No mappings found to create.");
+            else
+                LogEvent.Gw.LogInformation($"Created {Mappings.Count} mapping(s).");
         }
         catch (Exception ex)
         {
             LogEvent.Gw.LogError(ex, "Failed to create mappings.");
+            throw;
         }
 
+        var avalOp = (AnalogMapping)Mappings.First(m => m.Entity.EntityId.Equals("input_number.test_number"));
+        avalOp.Value = 15;
+        //var aval = (AnalogMapping)Mappings.First(m => m.Entity.EntityId.Equals("sensor.test_tfl"));
+        //aval.Value = 20;
 
-        //var mapping = (PlcHaInputNumnerMapping)Mappings.First();
-        //mapping.value = 12.5;
+        var bvalOp = (BooleanMapping)Mappings.First(m => m.Entity.EntityId.Equals("input_boolean.test_toggle"));
+        bvalOp.Value = true;
+
+        var mvalOp = (MultistateMapping)Mappings.First(m => m.Entity.EntityId.Equals("input_select.test_sel1"));
+        mvalOp.Value = 1;
     }
     public void Dispose() => plc.Dispose();
     #endregion
 
 
     private Plc plc;
-
     private IHaContext ha;
 }

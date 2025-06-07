@@ -3,6 +3,10 @@
   <POU Name="MAIN" Id="{067b15f6-2cb1-4e4c-9b21-108a46b595e1}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
+	{attribute 'PlcHa.Mapping' := 'sensor.test_tfl'}
+	{attribute 'PlcHa.Name' := 'Some flow temp'}
+	{attribute 'PlcHa.Unit' := '°C'}
+	test_ai : FB_Mfr_AI;
 	{attribute 'PlcHa.Mapping' := 'input_number.test_number'}
 	{attribute 'PlcHa.Name' := 'Some operational value'}
 	{attribute 'PlcHa.Unit' := '%'}
@@ -14,11 +18,11 @@ VAR
 	test_toggle : FB_Mfr_BValOp := (bVal:=FALSE);
 	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
 	{attribute 'PlcHa.Name' := 'Manual operation'}
-	{attribute 'PlcHa.Enum' := 'E_OffOnA'}
-	test_sel1 : FB_Mfr_MValOp := (nVal:=E_OffOnA.Auto);
-	
-	
-	
+	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
+	test_sel1 : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
+END_VAR
+VAR
+	_dummy : E_OffOnTest; // Just to make known to TcTypeSystem
 END_VAR
 ]]></Declaration>
     <Implementation>
