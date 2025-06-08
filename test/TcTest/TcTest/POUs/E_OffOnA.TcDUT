@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_OffOnA" Id="{e9208f05-3f69-4706-9f16-6b581ca68387}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+TYPE E_OffOnA :
+(
+	Auto := 0,
+	Off := 1,
+	On := 2
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

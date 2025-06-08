@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{067b15f6-2cb1-4e4c-9b21-108a46b595e1}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	{attribute 'PlcHa.Mapping' := 'input_number.test_number'}
+	{attribute 'PlcHa.Name' := 'Some operational value'}
+	{attribute 'PlcHa.Unit' := '%'}
+	{attribute 'PlcHa.Min' := '10'}
+	{attribute 'PlcHa.Max' := '30'}
+	test_number : FB_Mfr_AValOp := (fVal:=21.0);
+	{attribute 'PlcHa.Mapping' := 'input_boolean.test_toggle'}
+	{attribute 'PlcHa.Name' := 'Some toggle'}
+	test_toggle : FB_Mfr_BValOp := (bVal:=FALSE);
+	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
+	{attribute 'PlcHa.Name' := 'Manual operation'}
+	{attribute 'PlcHa.Enum' := 'E_OffOnA'}
+	test_sel1 : FB_Mfr_MValOp := (nVal:=E_OffOnA.Auto);
+	
+	
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[test_number();
+test_toggle();
+test_sel1();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
