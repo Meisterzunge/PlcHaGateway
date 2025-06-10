@@ -125,8 +125,42 @@ internal static class UtilEnum
     }
 }
 
+internal static class ExtField
+{
+    public static bool TryGetAttribute<T>(this FieldInfo field, out T attribute, bool inherit = false)
+        where T : Attribute
+    {
+        var _oAttrib = field.GetCustomAttributes(typeof(T), inherit);
+        if (_oAttrib.Length == 1)
+            attribute = (T)_oAttrib[0];
+        else
+            attribute = null;
+        return (attribute != null);
+    }
+    public static T GetAttribute<T>(this FieldInfo field, bool inherit = false)
+        where T : Attribute
+    {
+        if (TryGetAttribute(field, out T tResult, inherit))
+            return (tResult);
+        else
+            throw new KeyNotFoundException(string.Format("Did not found attribute of type '{0}'!", typeof(T).Name));
+    }
+}
 internal static class ExtEnum
 {
+    public static TAttrib GetCustomAttribute<TAttrib, TEnum>(this TEnum value, bool inherit = false)
+        where TAttrib : Attribute
+        where TEnum : struct, Enum
+    {
+        return (value.GetField().GetAttribute<TAttrib>(inherit));
+    }
+    public static bool TryGetCustomAttribute<TAttrib, TEnum>(this TEnum value, out TAttrib attribute, bool inherit = false)
+        where TAttrib : Attribute
+        where TEnum : struct, Enum
+    {
+        return (value.GetField().TryGetAttribute(out attribute, inherit));
+    }
+
     public static FieldInfo GetField<T>(this T value)
         where T : struct, Enum
     {
@@ -145,6 +179,52 @@ internal static class ExtEnum
     {
         UtilEnum.GetDescription(value.GetField(), out var result, fallback);
         return (result);
+    }
+}
+internal static class ExtList
+{
+    public static bool TryPop<T>(this IList<T> source, T item)
+    {
+        var idx = source.IndexOf(item);
+        if (idx == -1)
+            return (false);
+        else
+        {
+            source.RemoveAt(idx);
+            return (true);
+        }
+    }
+    public static bool TryPop<T>(this IList<T> source, out T item, Predicate<T> condition)
+    {
+        var idx = source.FirstIndexOf(condition);
+        if (idx == -1)
+        {
+            item = default;
+            return (false);
+        }
+        else
+        {
+            item = source[idx];
+            source.RemoveAt(idx);
+            return (true);
+        }
+    }
+    /// <summary>
+    /// Pops all items, that matches a certain <paramref name="condition"/>, out of a list.
+    /// </summary>
+    /// <returns>An enumeration of all popped items.</returns>
+    public static IEnumerable<T> PopWhere<T>(this IList<T> source, Predicate<T> condition)
+    {
+        for (int i = 0; i < source.Count; i++)
+        {
+            var item = source.ElementAt(i);
+            if (condition(item))
+            {
+                yield return (item);
+                source.RemoveAt(i--);
+            }
+        }
+        yield break;
     }
 }
 internal static class ExtDictionary
@@ -278,6 +358,14 @@ internal static class ExtEnumerable
             i++;
         }
         return (idx);
+    }
+    /// <summary>
+    /// Filters a sequence of values that are not null.
+    /// </summary>
+    public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source)
+        where T : class
+    {
+        return (SelectWhereNotNull<T, T>(source, (i) => i));
     }
     /// <summary>
     /// Filters a sequence of values that are not null to project them into a new form.

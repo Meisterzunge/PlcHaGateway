@@ -28,6 +28,7 @@
     <ItemGroup>
         <PackageReference Include="Beckhoff.TwinCAT.Ads" Version="6.3.62" />
         <PackageReference Include="NetDaemon.AppModel" Version="25.18.1" />
+        <PackageReference Include="NetDaemon.Extensions.Mqtt" Version="25.18.1" />
         <PackageReference Include="NetDaemon.Runtime" Version="25.18.1" />
         <PackageReference Include="NetDaemon.HassModel" Version="25.18.1" />
         <PackageReference Include="NetDaemon.Client" Version="25.18.1" />

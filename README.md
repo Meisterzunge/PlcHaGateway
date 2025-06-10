@@ -21,7 +21,10 @@ There are several _mini framework function blocks_ (MFFB) in the `Tc3_MiniFrame`
 
 - `FB_Mfr_View` | View
 
-  Should be used when ggregating MFFB's.
+  Should be used when aggregating MFFB's.
+
+  > The top most view is automatically considered a _virtual device_ wich will be mapped as such to the MQTT integration!
+    It will group all nested MFFB's.
 
 ## Attributes
 

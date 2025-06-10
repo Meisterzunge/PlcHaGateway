@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestDevice" Id="{ef991f9c-8dda-4f93-a3a9-85fe3d6e694b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestDevice EXTENDS FB_Mfr_View
+VAR
+	{attribute 'PlcHa.Mapping' := 'ai'}
+	{attribute 'PlcHa.Name' := 'Some analog input'}
+	{attribute 'PlcHa.DeviceClass' := 'temperature'}
+	{attribute 'PlcHa.Icon' := 'mdi:temperature-celsius'}
+	{attribute 'PlcHa.Unit' := '°C'}
+	ai : FB_Mfr_AI;
+	{attribute 'PlcHa.Mapping' := 'ao'}
+	{attribute 'PlcHa.Name' := 'Some analog output'}
+	{attribute 'PlcHa.Unit' := '%'}
+	ao : FB_Mfr_AO;
+	{attribute 'PlcHa.Mapping' := 'avSp'}
+	{attribute 'PlcHa.Name' := 'Some analog setpoint'}
+	{attribute 'PlcHa.Unit' := '°C'}
+	{attribute 'PlcHa.Min' := '10'}
+	{attribute 'PlcHa.Max' := '30'}
+	{attribute 'PlcHa.Mode' := 'box'}
+	avSp : FB_Mfr_AValOp := (fVal:=21.0);
+	{attribute 'PlcHa.Mapping' := 'avDsp'}
+	{attribute 'PlcHa.Name' := 'Some analog display value'}
+	{attribute 'PlcHa.Unit' := '%'}
+	avDsp : FB_Mfr_AVal;
+	
+	{attribute 'PlcHa.Mapping' := 'bi'}
+	{attribute 'PlcHa.Name' := 'Some binary input'}
+	bi : FB_Mfr_BI;
+	{attribute 'PlcHa.Mapping' := 'bo'}
+	{attribute 'PlcHa.Name' := 'Some binary output'}
+	bo : FB_Mfr_BO;
+	{attribute 'PlcHa.Mapping' := 'bvSp'}
+	{attribute 'PlcHa.Name' := 'Some binary setpoint'}
+	bvSp : FB_Mfr_BValOp := (bVal:=TRUE);
+	{attribute 'PlcHa.Mapping' := 'bvDsp'}
+	{attribute 'PlcHa.Name' := 'Some binary display value'}
+	bvDsp : FB_Mfr_BVal;
+	
+	{attribute 'PlcHa.Mapping' := 'mvSp'}
+	{attribute 'PlcHa.Name' := 'Some multistate setpoint'}
+	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
+	mvSp : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
+	{attribute 'PlcHa.Mapping' := 'mvDsp'}
+	{attribute 'PlcHa.Name' := 'Some multistate display value'}
+	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
+	mvDsp : FB_Mfr_MVal;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ai();
+ao();
+avSp();
+avDsp();
+
+bi();
+bo();
+bvSp();
+bvDsp();
+
+mvSp();
+mvDsp();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

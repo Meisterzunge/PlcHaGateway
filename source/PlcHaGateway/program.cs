@@ -6,6 +6,7 @@ using NetDaemon.Extensions.Tts;
 using NetDaemon.Runtime;
 using HomeAssistantGenerated;
 using Microsoft.Extensions.DependencyInjection;
+using NetDaemon.Extensions.MqttEntityManager;
 
 #pragma warning disable CA1812
 
@@ -16,6 +17,7 @@ try
         .UseNetDaemonDefaultLogging()
         .UseNetDaemonRuntime()
         .UseNetDaemonTextToSpeech()
+        .UseNetDaemonMqttEntityManagement()
         .ConfigureServices((_, services) =>
             services
                 .AddAppsFromAssembly(Assembly.GetExecutingAssembly())

@@ -3,6 +3,9 @@
   <POU Name="MAIN" Id="{067b15f6-2cb1-4e4c-9b21-108a46b595e1}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
+	{attribute 'PlcHa.Mapping' := 'Test10'}
+	fbDevice10 : FB_TestDevice;
+	
 	{attribute 'PlcHa.Mapping' := 'sensor.test_tfl'}
 	{attribute 'PlcHa.Name' := 'Some flow temp'}
 	{attribute 'PlcHa.Unit' := '°C'}
@@ -26,7 +29,9 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[test_number();
+      <ST><![CDATA[fbDevice10();
+
+test_number();
 test_toggle();
 test_sel1();]]></ST>
     </Implementation>

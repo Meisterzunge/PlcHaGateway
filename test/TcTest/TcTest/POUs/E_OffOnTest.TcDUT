@@ -9,7 +9,7 @@ TYPE E_OffOnTest :
 	Auto := 1,
 	Off := 2,
 	On := 3
-);
+) UDINT;
 END_TYPE
 ]]></Declaration>
   </DUT>

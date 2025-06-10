@@ -20,8 +20,10 @@ internal class Common
 }
 internal static class LogEvent
 {
-    internal static readonly EventId Ads = new(100, "ADS");
     internal static readonly EventId Gw = new(101, "Gateway");
+    internal static readonly EventId Hass = new(100, "Home Assistant");
+    internal static readonly EventId Ads = new(100, "ADS");
+    internal static readonly EventId Mqtt = new(102, "MQTT");
 }
 
 
