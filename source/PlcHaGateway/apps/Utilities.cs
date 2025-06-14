@@ -100,6 +100,37 @@ internal static class UtilType
 }
 internal static class UtilEnum
 {
+    /// <summary>
+    /// Creates a mapping dictionary of enumerated values that are decorated with a certain attribute.
+    /// </summary>
+    /// <typeparam name="TEnum">Enumerated type.</typeparam>
+    /// <typeparam name="TAttrib">Attribute type.</typeparam>
+    public static IReadOnlyDictionary<TEnum, TAttrib> GetCustomAttributes<TEnum, TAttrib>(bool inherit = false)
+        where TEnum : struct, Enum
+        where TAttrib : Attribute
+    {
+        return (GetCustomAttributes<TEnum, TAttrib, TEnum, TAttrib>(
+            (e, a) => e,
+            (e, a) => a,
+            inherit
+        ));
+    }
+    /// <inheritdoc cref="GetCustomAttributes"/>
+    /// <param name="keySelector">Selector to obtain key.</param>
+    /// <param name="valueSelector">Selector to obtain value.</param>
+    public static IReadOnlyDictionary<TKey, TVal> GetCustomAttributes<TEnum, TAttrib, TKey, TVal>(Func<TEnum, TAttrib, TKey> keySelector, Func<TEnum, TAttrib, TVal> valueSelector, bool inherit = false)
+        where TEnum : struct, Enum
+        where TAttrib : Attribute
+    {
+        var res = new Dictionary<TKey, TVal>();
+        foreach (var val in Enum.GetValues<TEnum>())
+        {
+            if (val.TryGetCustomAttribute<TAttrib, TEnum>(out var attrib, inherit))
+                res.Add(keySelector(val, attrib), valueSelector(val, attrib));
+        }
+        return (res);
+    }
+    
     public static string GetDescription(Type enumType, int value, bool fallback = true) => GetDescription((Enum)Enum.ToObject(enumType, value), fallback);
     public static string GetDescription(Enum value, bool fallback = true)
     {
@@ -256,6 +287,40 @@ internal static class ExtDictionary
             return (key);
         else
             throw new NotImplementedException($"Failed to obtain key due to conditional missmatch!");
+    }
+
+    /// <summary>
+    /// Adds a key/value-pair if the key is new.
+    /// </summary>
+    public static bool TryAdd<T, U>(this IDictionary<T, U> source, T key, U value)
+    {
+        if (source.ContainsKey(key))
+            return (false);
+        else
+        {
+            source.Add(key, value);
+            return (true);
+        }
+    }
+    /// <summary>
+    /// Adds a new key/value-pair if the key is new. An existing key/value-pair is updated by the new value.
+    /// </summary>
+    public static void AddOrUpdate<T, U>(this IDictionary<T, U> source, T key, U value)
+    {
+        if (!TryAdd(source, key, value))
+            source[key] = value;
+    }
+    /// <summary>
+    /// Adds a new key/value-pair if the key is new. An existing key/value-pair is updated.
+    /// </summary>
+    /// <param name="addValue">The function used to generate a value for an absent key.</param>
+    /// <param name="updateValueFactory">The function used to generate a new value for an existing key based on the key's existing value.</param>
+    public static void AddOrUpdate<T, U>(this IDictionary<T, U> source, T key, U addValue, Func<T, U, U> updateValueFactory)
+    {
+        if (source.TryGetValue(key, out var _uVal))
+            source[key] = updateValueFactory(key, _uVal);
+        else
+            source.Add(key, addValue);
     }
 }
 internal static class ExtEnumerable

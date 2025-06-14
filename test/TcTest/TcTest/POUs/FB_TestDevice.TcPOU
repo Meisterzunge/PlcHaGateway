@@ -52,15 +52,15 @@ END_VAR
       <ST><![CDATA[ai();
 ao();
 avSp();
-avDsp();
+avDsp(fValue := 123.4);
 
 bi();
 bo();
 bvSp();
-bvDsp();
+bvDsp(bValue := TRUE);
 
 mvSp();
-mvDsp();]]></ST>
+mvDsp(nValue:=E_OffOnTest.Auto);]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

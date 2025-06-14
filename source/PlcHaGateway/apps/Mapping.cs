@@ -7,30 +7,31 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NetDaemon.Extensions.MqttEntityManager;
 using NetDaemon.HassModel.Entities;
 using TwinCAT.Ads;
 using TwinCAT.Ads.TypeSystem;
 using TwinCAT.TypeSystem;
 using Utilities.Core;
+using static Tc3_MiniFrame;
 
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class MappingAttribute : Attribute
 {
-    public MappingAttribute(EntityType entityType, params string[] supportedPlcTypes)
+    public MappingAttribute(EntityType entityType, params FunctionBlock[] supportedPlcTypes)
     {
         this.EntityType = entityType;
         this.EntityTypeName = entityType.GetAttribute().TypeName;
-        this.SupportedPlcTypes = supportedPlcTypes
-            .Select(t => t.ToPlcType())
-            .ToArray();
+        this.SupportedPlcTypes = supportedPlcTypes;
     }
 
 
     public EntityType EntityType { get; }
     public string EntityTypeName { get; }
-    public string[] SupportedPlcTypes { get; }
+    public FunctionBlock[] SupportedPlcTypes { get; }
 }
 
 /// <summary>
@@ -49,7 +50,7 @@ public class VirtualDevice : IEnumerable<ISymbol>
 
         this.Mappings = symbol.SubSymbols
             .Flatten()
-            .OfMappedSymbols()
+            .WhereMapped()
             .SelectWhereNotNull(s => MappingFactory.CreateMapping(s, this)!)
             .ToArray();
     }
@@ -68,36 +69,64 @@ public class VirtualDevice : IEnumerable<ISymbol>
     #endregion
 
 
+    public override string ToString() => Identifier;
+
     IEnumerator IEnumerable.GetEnumerator() => Mappings.GetEnumerator();
     public IEnumerator<ISymbol> GetEnumerator() => (IEnumerator<ISymbol>)Mappings.GetEnumerator();
 }
+
+public enum AutomationContext
+{
+    /// <summary>
+    /// PLC related context.
+    /// </summary>
+    Plc,
+    /// <summary>
+    /// HomeAssist or MQTT related context.
+    /// </summary>
+    Hass
+}
+
+public record Modification(DateTime TimeStamp, AutomationContext? Source);
 
 public interface IMapping
 {
     #region Properties.Management
     MappingAttribute Info { get; }
+    FunctionBlock FunctionBlockType { get; }
     VirtualDevice? Owner { get; }
     ISymbol Symbol { get; }
     string EntityId { get; }
+
+    Modification? LastModified { get; }
     #endregion
     #region Properties
     string Name { get; }
     string? DeviceClass { get; }
     object? Value { get; }
     #endregion
+
+
+    #region Management
+    bool SetValue(object? value, AutomationContext? source = null);
+    bool IsDirty(AutomationContext target);
+    internal void ResetDirty();
+    #endregion
 }
 public abstract class Mapping<T> : IMapping
-    where T : IConvertible
+    where T : struct
 {
     internal Mapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null)
     {
         var sym = (Symbol)symbol;
         var session = (AdsSession)sym.Connection!.Session!;
 
+        this.dataTypes = session.SymbolServer.DataTypes;
+
         this.Info = info;
+        this.FunctionBlockType = symbol.GetFunctionBlockType(out _);
         this.Owner = owner;
         this.Symbol = symbol;
-        this.dataTypes = session.SymbolServer.DataTypes;
         this.EntityId = symbol.GetEntityPath();
         this.Name = GetMappingParameter(PlcMappingParameter.Name).Value;
         this.DeviceClass = TryGetMappingParameter(PlcMappingParameter.DeviceClass)?.Value;
@@ -111,9 +140,12 @@ public abstract class Mapping<T> : IMapping
     #endregion
     #region Properties.Management
     public MappingAttribute Info { get; }
+    public FunctionBlock FunctionBlockType { get; }
     public VirtualDevice? Owner { get; }
     public ISymbol Symbol { get; }
     public string EntityId { get; }
+
+    public Modification? LastModified { get; private set; }
     #endregion
     #region Properties
     public string Name { get; }
@@ -125,6 +157,7 @@ public abstract class Mapping<T> : IMapping
         set => SetValue(value);
     }
     private T? value;
+    private bool dirty;
     #endregion
 
 
@@ -152,9 +185,48 @@ public abstract class Mapping<T> : IMapping
     }
     protected ITypeAttribute? TryGetMappingParameter(PlcMappingParameter parameter) => Symbol.TryGetMappingParameterAttribute(parameter);
 
-    public virtual void SetValue(T value)
+    bool IMapping.SetValue(object? value, AutomationContext? source)
     {
-        this.value = value;
+        value = ConvertValue(value);
+        if (value is null)
+            return (false); // throw new NotSupportedException($"Not allowed to assign value of null to '{this}'!");
+        else if (value is T val)
+            return (this.SetValue(val, source));
+        else
+            throw new InvalidCastException($"Failed to apply value of type '{value.GetType().Name}' to '{this}'!");
+    }
+    protected virtual T? ConvertValue(object? value)
+    {
+        if ((value is string sVal) && (string.IsNullOrEmpty(sVal)))
+            return (null);
+        else
+            return ((T?)Convert.ChangeType(value, typeof(T)));
+    }
+    /// <returns>Returns <c>true</c> if value has changed, otherwise <c>false</c>.</returns>
+    public bool SetValue(T? value, AutomationContext? source = null)
+    {
+        if ((this.value?.Equals(value) == true) && (this.LastModified is not null))
+            return (false);
+        else
+        {
+            this.dirty = true;
+            this.value = value;
+            this.LastModified = new(DateTime.Now, source);
+
+            return (true);
+        }
+    }
+    public bool IsDirty(AutomationContext target)
+    {
+        if (dirty)
+            // Indicate dirty if target context was not the last modification source:
+            return (target != LastModified?.Source);
+        else
+            return (false);
+    }
+    public void ResetDirty()
+    {
+        this.dirty = false;
     }
     #endregion
 
@@ -164,56 +236,20 @@ public abstract class Mapping<T> : IMapping
 
     private IDataTypeCollection<IDataType> dataTypes;
 }
-[Mapping(EntityType.Sensor, Tc3_MiniFrame.AnalogInput, Tc3_MiniFrame.AnalogOutput, Tc3_MiniFrame.AnalogValue)]
-[Mapping(EntityType.Number, Tc3_MiniFrame.AnalogOperationalValue)]
-public class AnalogMapping : Mapping<double>
+[Mapping(EntityType.Sensor, FunctionBlock.AnalogInput, FunctionBlock.AnalogOutput, FunctionBlock.AnalogValue)]
+[Mapping(EntityType.Number, FunctionBlock.AnalogOperationalValue)]
+public class AnalogMapping : Mapping<float>
 {
     public AnalogMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner) { }
-
-
-    public override void SetValue(double value)
-    {
-        // (BETA) ... TODO
-        /*
-        switch (Info.EntityType)
-        {
-            /// <see href="??">
-            case EntityType.Sensor: throw new NotImplementedException("TODO");
-            /// <see href="https://www.home-assistant.io/integrations/input_number/#actions">
-            case EntityType.InputNumber: Entity.CallService("set_value", new { value = value }); break;
-
-            default: throw SetValueNotSupported;
-        }
-        */
-        base.SetValue(value);
-    }
 }
-[Mapping(EntityType.BinarySensor, Tc3_MiniFrame.BinaryInput, Tc3_MiniFrame.BinaryOutput, Tc3_MiniFrame.BinaryValue)]
-[Mapping(EntityType.Switch, Tc3_MiniFrame.BinaryOperationalValue)]
+[Mapping(EntityType.BinarySensor, FunctionBlock.BinaryInput, FunctionBlock.BinaryOutput, FunctionBlock.BinaryValue)]
+[Mapping(EntityType.Switch, FunctionBlock.BinaryOperationalValue)]
 public class BooleanMapping : Mapping<bool>
 {
     public BooleanMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner) { }
-
-
-    public override void SetValue(bool value)
-    {
-        // (BETA) ... TODO
-        /*
-        switch (Info.EntityType)
-        {
-            /// <see href="??">
-            case EntityType.BinarySensor: throw new NotImplementedException("TODO");
-            /// <see href="https://www.home-assistant.io/integrations/input_boolean/#actions">
-            case EntityType.InputBoolean: Entity.CallService((value == true) ? "turn_on" : "turn_off"); break;
-
-            default: throw SetValueNotSupported;
-        }
-        */
-        base.SetValue(value);
-    }
 }
-[Mapping(EntityType.Sensor, Tc3_MiniFrame.MultistateValue)]
-[Mapping(EntityType.Select, Tc3_MiniFrame.MultistateOperationalValue)]
+[Mapping(EntityType.Sensor, FunctionBlock.MultistateValue)]
+[Mapping(EntityType.Select, FunctionBlock.MultistateOperationalValue)]
 public class MultistateMapping : Mapping<uint>
 {
     public MultistateMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner)
@@ -249,28 +285,39 @@ public class MultistateMapping : Mapping<uint>
     }
 
 
+    #region Properties
     public IReadOnlyDictionary<uint, string> Options { get; }
-    // (BETA) ... TODO
-    //public uint? Value
-    //{
-    //    get => Options.GetKeyOf(Entity.State);
-    //}
-    public override void SetValue(uint value)
+    public string? State
     {
-        // (BETA) ... TODO
-        /*
-        switch (Info.EntityType)
+        get
         {
-            /// <see href="??">
-            case EntityType.Sensor: throw new NotImplementedException("TODO");
-            /// <see href="https://www.home-assistant.io/integrations/input_select/#actions">
-            case EntityType.InputMultistate: Entity.CallService("select_option", new { option = Options[value!.Value] }); break;
-
-            default: throw SetValueNotSupported;
+            if (Value is null)
+                return (null);
+            else if (!Options.TryGetValue(Value!.Value, out var val))
+                return (null);
+            else
+                return (val);
         }
-        */
-        base.SetValue(value);
+        set => this.Value = ConvertValue(value);
     }
+    #endregion
+
+
+    #region Management
+    protected override uint? ConvertValue(object? value)
+    {
+        switch (value)
+        {
+            case string sVal:
+                if (Options.TryGetKeyOf(v => v.Equals(sVal, StringComparison.InvariantCultureIgnoreCase), out var val))
+                    return (val);
+                else
+                    return (null);
+
+            default: return (base.ConvertValue(value));
+        }
+    }
+    #endregion
 
 
     #region Helper
@@ -293,7 +340,7 @@ internal sealed class MappingFactory
             t => t,
             t => t.GetCustomAttributes<MappingAttribute>().ToArray()
         );
-    static readonly IReadOnlyDictionary<string, (Type Type, MappingAttribute Info)> MappingInfo = MappingTypes
+    static readonly IReadOnlyDictionary<FunctionBlock, (Type Type, MappingAttribute Info)> MappingInfo = MappingTypes
         .SelectMany(t => t.Value)
         .SelectMany(m => m.SupportedPlcTypes)
         .ToDictionary(
@@ -306,22 +353,6 @@ internal sealed class MappingFactory
     public static VirtualDevice[] CreateDevices(IEnumerable<ISymbol> symbols) => symbols
         .Select(s => new VirtualDevice(s))
         .ToArray();
-    //private static IMapping? CreateMapping(IMqttEntityManager entityManager, ISymbol symbol)
-    //{
-    //
-    //    /*
-    //            this.Devices = res.Symbols
-    //                .Where(s => s.IsMapped())
-    //                .ToDictionary(
-    //                    s => new VirtualDevice(s),
-    //                    s => s.SubSymbols.Flatten().ToArray()
-    //                );
-    //
-    //            this.Members = symbol.SubSymbols
-    //                .Flatten()
-    //                .ToArray();
-    //    */
-    //}
     public static IMapping[] CreateMappings(IEnumerable<ISymbol> symbols) => symbols
         .Select(s => CreateMapping(s))
         .WhereNotNull()
@@ -330,13 +361,13 @@ internal sealed class MappingFactory
     {
         try
         {
-            var gwType = symbol.GetGatewayDataType();
-            if (gwType.Name == Tc3_MiniFrame.View.ToPlcType())
+            var fb = symbol.GetFunctionBlockType(out _);
+            if (fb == FunctionBlock.View)
                 return (null); // Skip (Not required as mapping target).
-            else if (MappingInfo.TryGetValue(gwType.Name, out var mapping))
+            else if (MappingInfo.TryGetValue(fb, out var mapping))
                 return ((IMapping)Activator.CreateInstance(mapping.Type, [mapping.Info, symbol, device])!);
             else
-                throw new NotSupportedException($"Datatype '{gwType.Name}' is not supported!");
+                throw new NotSupportedException($"Datatype '{fb.GetTypeName()}' is not supported!");
         }
         catch (Exception ex)
         {
@@ -347,7 +378,7 @@ internal sealed class MappingFactory
 
 
     #region Helper
-    private static (Type Type, MappingAttribute Info) GetMappingInfo(string plcType)
+    private static (Type Type, MappingAttribute Info) GetMappingInfo(FunctionBlock plcType)
     {
         foreach (var info in MappingTypes)
         {
@@ -379,8 +410,41 @@ internal static partial class Ext
     #endregion
 
 
-    public static string ToPlcType(this string source) => $"{Tc3_MiniFrame.LibraryName}.{source}";
-    public static IEnumerable<ISymbol> OfMappedSymbols(this IEnumerable<ISymbol> source) => source.Where(IsMapped);
+    public static IEnumerable<IMapping> WhereDirty(this IEnumerable<IMapping> source, AutomationContext context) => source.Where(m => m.IsDirty(context));
+    public static void ResetDirty(this IEnumerable<IMapping> source) => source.ForEach(m => m.ResetDirty());
+    /// <summary>
+    /// Write changed values to specified <see cref="AutomationContext">context</see>.
+    /// </summary>
+    /// <returns>Written mappings.</returns>
+    public static async Task<IMapping[]> UpdateWhereDirtyAsync(this IEnumerable<IMapping> source, AutomationContext context, Plc plc, IMqttEntityManager entityManager, CancellationToken cancellationToken)
+    {
+        var dirtyMappings = source
+            .WhereDirty(context)
+            .ToArray();
+        if (!dirtyMappings.IsEmpty())
+        {
+            switch (context)
+            {
+                case AutomationContext.Plc:
+                    await dirtyMappings.WriteMappingsAsync(plc, cancellationToken).ConfigureAwait(false);
+                    break;
+
+                case AutomationContext.Hass:
+                    // TODO: Write HASS entities.
+                    // > for now, all changes are written to MQTT. Implement writing "static mapped" HASS entities via 'IHaContext'.
+
+                    await dirtyMappings.WriteMappingsAsync(entityManager).ConfigureAwait(false);
+                    break;
+
+                default: throw new NotSupportedException($"Failed to update dirty mappings of not supported context '{context}'!");
+            }
+        }
+
+        return (dirtyMappings);
+    }
+    
+
+    public static IEnumerable<ISymbol> WhereMapped(this IEnumerable<ISymbol> source) => source.Where(IsMapped);
     public static bool IsMapped(this ISymbol source) => (source.TryGetMappingParameterAttribute() is not null);
     public static IEnumerable<ITypeAttribute> GetMappingParameterAttributes(this ISymbol source) => source.Attributes
         .Where(a => PlcMappingAttributes.ContainsKey(a.Name.ToLower()));
@@ -421,16 +485,38 @@ internal static partial class Ext
         else
             return (attrib.Value);
     }
-    public static bool IsGatewayDataType(this ISymbol source, string expectedTypeName) => GetGatewayDataType(source).Name.Equals(expectedTypeName);
-    public static IDataType GetGatewayDataType(this ISymbol source)
+    public static bool IsFunctionBlock(this ISymbol source, FunctionBlock expectedType) => (GetFunctionBlockType(source, out _) == expectedType);
+    public static FunctionBlock GetFunctionBlockType(this string source)
+    {
+        var parts = source.Split('.');
+        switch (parts.Length)
+        {
+            case 1: break;
+            case 2:
+                if (!parts.First().Equals(Tc3_MiniFrame.LibraryName, StringComparison.InvariantCultureIgnoreCase))
+                    throw new ArgumentException($"Type '{source}' is not a '{Tc3_MiniFrame.LibraryName}' type!");
+                break;
+
+            default: throw new KeyNotFoundException($"Type '{source}' doesn't seem to be a functionblock!");
+        }
+
+        var typeName = parts.Last();
+        return (Tc3_MiniFrame.FunctionBlocks.GetKeyOf((i) => i.TypeName.Equals(typeName)));
+    }
+    public static FunctionBlock GetFunctionBlockType(this ISymbol source, out IDataType dataType)
+    {
+        dataType = GetFunctionBlockType(source);
+        return (dataType.Name.GetFunctionBlockType());
+    }
+    public static IDataType GetFunctionBlockType(this ISymbol source)
     {
         if (source.IsMiniFrameType())
             return (source.DataType);
 
         if (source.DataType is not IStructType structType)
-            throw new NotSupportedException($"Failed to determine gateway datatype from symbol '{source.InstancePath}' of not non-structured datatype '{source.TypeName}'!");
+            throw new NotSupportedException($"Failed to determine functionblock type from symbol '{source.InstancePath}' of not non-structured datatype '{source.TypeName}'!");
         else if (!structType.BaseType.IsMiniFrameType())
-            throw new NotSupportedException($"Failed to determine gateway datatype from symbol '{source.InstancePath}' of not supported datatype '{source.TypeName}'!");
+            throw new NotSupportedException($"Failed to determine functionblock type from symbol '{source.InstancePath}' of not supported datatype '{source.TypeName}'!");
         else
             return (structType.BaseType);
     }

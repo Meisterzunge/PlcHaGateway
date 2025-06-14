@@ -1,9 +1,13 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using NetDaemon.Extensions.MqttEntityManager;
 using TwinCAT.Ads;
@@ -61,7 +65,7 @@ internal static partial class Ext
 
     public static EntityTypeAttribute GetAttribute(this EntityType source) => source.GetCustomAttribute<EntityTypeAttribute, EntityType>();
 
-    public static Task CreateMqttEntity(this IMapping source, IMqttEntityManager entityManager)
+    public static async Task CreateMqttEntity(this IMapping source, IMqttEntityManager entityManager)
     {
         // Validate:
         var mandatoryParams = source.Info.EntityType.GetAttribute().MandatoryParameters;
@@ -74,7 +78,7 @@ internal static partial class Ext
         if (!missingParams.IsEmpty())
             throw new ArgumentException($"Missing mandatory attribute(s): {string.Join(", ", missingParams)}");
 
-        EntityCreationOptions ? options = null;
+        EntityCreationOptions? options = null;
         object? additionalConfig = null;
         if (source.Owner is null)
         {
@@ -88,7 +92,7 @@ internal static partial class Ext
             {
                 devices.Add(source.Owner, device = new
                 {
-                    identifiers = source.Owner.Identifier,
+                    identifiers = new string[] { source.Owner.Identifier },
                     name = source.Owner.Symbol.InstanceName, // (BETA) ... DeviceAttrib: implement new attribute in PLC
                     model = "ABC X1", // (BETA) ... DeviceAttrib: implement new attribute in PLC
                     manufacturer = "Voltium", // (BETA) ... DeviceAttrib: implement new attribute in PLC
@@ -97,8 +101,6 @@ internal static partial class Ext
             }
 
             // Create MQTT entity:
-            var stateTopic = $"homeassistant/sensor/{source.Owner.Identifier}/state";
-
             options = new EntityCreationOptions(source.DeviceClass, null, source.Name);
             additionalConfig = new ExpandoObject();
             {
@@ -123,8 +125,8 @@ internal static partial class Ext
                 }
 
                 // Apply configuration:
-                addCfg.Add("state_topic", stateTopic);
-                addCfg.Add("value_template", string.Format("{{ value_json.{0} }}", source.EntityId));
+                addCfg.Add("state_topic", $"homeassistant/{source.Info.EntityTypeName}/{source.Owner.Identifier}/state");
+                addCfg.Add("value_template", string.Format("{{{{ value_json.{0} }}}}", source.EntityId));
                 addCfg.Add("device", device);
             }
         }
@@ -132,10 +134,66 @@ internal static partial class Ext
         var entityId = $"{source.Info.EntityTypeName}.{source.EntityId}";
         LogEvent.Mqtt.LogTrace("Creating MQTT entity {0}.", entityId);
 
-        return (entityManager.CreateAsync(entityId, options, additionalConfig));
-    }
-    
+        await entityManager.CreateAsync(entityId, options, additionalConfig).ConfigureAwait(false);
 
+        // Subscribe to MQTT entity:
+        if (source.FunctionBlockType.IsOperationalType())
+        {
+            Action<string> OnSubscribe = async (state) =>
+            {
+                LogEvent.Mqtt.LogTrace("Receive changed value of MQTT entity {0}.", entityId);
+
+                source.SetMqttValue(state);
+                await new[] { source }
+                    .WriteMappingsAsync(entityManager, false) // Do not reset dirty hence we want to update the PLC site!
+                    .ConfigureAwait(false);
+            };
+
+            var command = await entityManager
+                .PrepareCommandSubscriptionAsync(entityId)
+                .ConfigureAwait(false);
+            command.Subscribe(OnSubscribe);
+        }
+    }
+
+    /// <summary>
+    /// Writes mappings to MQTT.
+    /// </summary>
+    public static Task WriteMappingsAsync(this IEnumerable<IMapping> source, IMqttEntityManager entityManager, bool resetDirty = true) => Task.WhenAll(source
+        .GroupBy(m => m.Owner)
+        .SelectMany(grp => WriteDeviceMappingsAsync(grp.Key!, grp, entityManager, resetDirty)));
+    /// <summary>
+    /// Writes mappings of specified device to MQTT.
+    /// </summary>
+    private static IEnumerable<Task> WriteDeviceMappingsAsync(this VirtualDevice? source, IEnumerable<IMapping> mappings, IMqttEntityManager entityManager, bool resetDirty = true) => mappings
+        .GroupBy(m => m.Info.EntityTypeName)
+        .Select(grp => WriteDeviceMappingsAsync(source, grp.Key, grp, entityManager, resetDirty));
+    /// <summary>
+    /// Writes mappings of specified device and entity type to MQTT.
+    /// </summary>
+    private static Task WriteDeviceMappingsAsync(this VirtualDevice? source, string entityType, IEnumerable<IMapping> mappings, IMqttEntityManager entityManager, bool resetDirty = true)
+    {
+        // TODO: Handle device-less mappings
+        if (source is null)
+        {
+            mappings.ResetDirty();
+            return (Task.CompletedTask);
+        }
+
+        var state = (IDictionary<string, object>)(object)new ExpandoObject();
+        {
+            foreach (var mapping in mappings)
+            {
+                Debug.Assert(ReferenceEquals(mapping.Owner, source), $"Only mappings of specified device '{source}' allowed!");
+                Debug.Assert(mapping.Info.EntityTypeName.Equals(entityType), $"Only mappings of specified entity type '{entityType}' allowed!");
+
+                state.Add(mapping.EntityId, mapping.GetMqttValue() ?? "#null");
+                if (resetDirty)
+                    mapping.ResetDirty();
+            }
+        }
+        return (entityManager.SetStateAsync($"{entityType}.{source.Identifier}", JsonSerializer.Serialize(state)));
+    }
     #region Helper
     private static IEnumerable<(PlcMappingParameter Parameter, string MqttAttribute, ITypeAttribute Attribute)> GetMqttMappingParameterAttributes(this IMapping source)
     {
@@ -152,6 +210,40 @@ internal static partial class Ext
             }
         }
         yield break;
+    }
+    private static object? GetMqttValue(this IMapping source)
+    {
+        switch (source)
+        {
+            case AnalogMapping aMapping: return (aMapping.Value);
+            case BooleanMapping bMapping:
+                if (bMapping.Value is null)
+                    return (null);
+                else
+                    return (bMapping.Value!.Value ? "ON" : "OFF");
+            case MultistateMapping mMapping: return (mMapping.State);
+
+            default: throw new NotSupportedException($"Failed to obtain value from not supported mapping of type '{source.GetType().Name}'!");
+        }
+    }
+    private static void SetMqttValue(this IMapping source, string? value)
+    {
+        // Convert value:
+        object? val = value;
+        switch (source)
+        {
+            case null: break;
+
+            case AnalogMapping aMapping: break;
+            case BooleanMapping bMapping:
+                val = value!.Equals("ON", StringComparison.InvariantCultureIgnoreCase);
+                break;
+            case MultistateMapping mMapping: break;
+
+            default: throw new NotSupportedException($"Failed to obtain value from not supported mapping of type '{source.GetType().Name}'!");
+        }
+
+        source!.SetValue(val, AutomationContext.Hass);
     }
     #endregion
 

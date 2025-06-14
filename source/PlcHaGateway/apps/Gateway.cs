@@ -1,12 +1,15 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Mail;
+using System.Reactive.Concurrency;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using NetDaemon.Extensions.MqttEntityManager;
 using NetDaemon.HassModel.Entities;
+using TwinCAT.Ads.SumCommand;
 using Utilities.Core;
 
 namespace HassModel;
@@ -18,12 +21,14 @@ namespace HassModel;
 [NetDaemonApp]
 public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
 {
-    public PlcHaGatewayApp(IConfiguration config, ILogger<PlcHaGatewayApp> logger, IHaContext context, IMqttEntityManager entityManager)
+    public PlcHaGatewayApp(IConfiguration config, ILogger<PlcHaGatewayApp> logger, IHaContext context, IScheduler scheduler, IMqttEntityManager entityManager)
     {
         new Common(logger);
 
+        this.config = config;
         this.plc = config.CreatePlcFromSettings();
         this.ha = context;
+        this.scheduler = scheduler;
         this.entityManager = entityManager;
     }
 
@@ -41,167 +46,8 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
 
 
     #region Initialization
-    /*
-    public async Task TestDev()
-    {
-        var _entityManager = entityManager;
-        var create = false;
-
-
-        // BINARY_SENSOR:
-        if (create)
-        {
-            await entityManager
-                .CreateAsync("binary_sensor.test2_sensor2", new EntityCreationOptions(
-                    DeviceClass: "connectivity",
-                    UniqueId: "1234-11-22-40",
-                    Name: "Some binary sensor"))
-                .ConfigureAwait(false);
-        }
-        await _entityManager.SetStateAsync("binary_sensor.test2_sensor2", "ON").ConfigureAwait(false);
-
-        // NUMBER:
-        if (create)
-        {
-            await entityManager
-                .CreateAsync("number.test2_number2", new EntityCreationOptions(
-                    DeviceClass: "temperature",
-                    UniqueId: "12AA-11-22-50",
-                    Name: "Some number"))
-                .ConfigureAwait(false);
-        }
-        await _entityManager.SetStateAsync("number.test2_number2", "1").ConfigureAwait(false);
-
-        // ---------------
-
-
-        // This device will have five sensors. We tie all of the sensors together
-        // by sharing the same `identifiers` list with each sensor.
-        var identifiers = new[] { "test_car_charger" };
-
-        // It is important that all sensors share the same State Topic so that
-        // we can update all values in one go.
-        // You will see that in each sensor, the `value_template` defines how
-        // we extract the sensor value from the multiple update.
-        var stateTopic = "homeassistant/sensor/test_car_charger/state";
-
-        // First we define the device that will own all the sensors. This is passed
-        // when we create the first of the sensors.
-        var device = new { identifiers = identifiers, name = "Car Charger", model = "ABC X1", manufacturer = "Voltium", sw_version = 1.22 };
-
-        if (create)
-        {
-            // ANALOG INPUT/OUTPUT
-            // Create the first sensor for temperature. This requires a unique entity ID
-            // and value_template, but needs to include the shared state topic and device info
-            await _entityManager.CreateAsync("sensor.test_car_charger_temperature", new EntityCreationOptions
-            {
-                Name = "Temperature",
-                DeviceClass = "temperature",
-            }, new
-            {
-                unit_of_measurement = "\u00b0C",
-                state_topic = stateTopic,   // Note the override of the state topic
-                value_template = "{{ value_json.temperature }}", // and value from state
-                device             // Links the sensors together
-            });
-
-            // ANALOG INPUT (Battery)
-            // ...followed by a battery sensor. This has a special meaning in Home Assistant
-            // as entities with the device class of `battery` can be used in automations to
-            // identify which are running low
-            await _entityManager.CreateAsync("sensor.test_car_charger_battery", new EntityCreationOptions
-            {
-                Name = "Battery",
-                DeviceClass = "battery"
-            }, new
-            {
-                unit_of_measurement = "%",
-                state_topic = stateTopic,
-                value_template = "{{ value_json.battery }}",
-                device
-            });
-
-            // SENSOR (As string)
-            // and finally, a mode sensor that can be represented as a string
-            await _entityManager.CreateAsync("sensor.test_car_charger_mode", new EntityCreationOptions
-            {
-                Name = "Mode",
-            }, new
-            {
-                icon = "mdi:list-status",
-                state_topic = stateTopic,
-                value_template = "{{ value_json.mode }}",
-                device
-            });
-
-            // BINARY_SENSOR:
-            await _entityManager.CreateAsync("binary_sensor.test_car_charger_feedback", new EntityCreationOptions
-            {
-                Name = "Feedback",
-                DeviceClass = "problem"
-            }, new
-            {
-                icon = "mdi:toggle-switch",
-                state_topic = stateTopic,   // Note the override of the state topic
-                value_template = "{{ value_json.feedback }}", // and value from state
-                device             // Links the sensors together
-            });
-
-            // NUMBER (Setpoint)
-            await _entityManager.CreateAsync("number.test_car_charger_setpoint", new EntityCreationOptions
-            {
-                Name = "Setpoint",
-                DeviceClass = "temperature"
-            }, new
-            {
-                unit_of_measurement = "\u00b0C",
-                icon = "mdi:temperature-celsius",
-                //mode = "slider",
-                initial = 21,
-                min = 15,
-                max = 28,
-                step = 0.1,
-                state_topic = stateTopic,   // Note the override of the state topic
-                value_template = "{{ value_json.setpoint }}", // and value from state
-                device             // Links the sensors together
-            });
-        }
-
-        // SUBSCRIBE TO UPDATES:
-        (await _entityManager.PrepareCommandSubscriptionAsync("number.test_car_charger_setpoint").ConfigureAwait(false))
-            .Subscribe(new Action<string>(async state =>
-            {
-                await _entityManager.SetStateAsync("number.test_car_charger_setpoint", state).ConfigureAwait(false);
-            }));
-
-        // Now that we have everything set up we can post an update to the shared state topic.
-        // This needs to be a JSON string comprising all of the values we want to set so let's
-        // start with a dynamic object and then JSON it
-        var newState = new
-        {
-            temperature = DateTime.Now.Second,
-            battery = 80,
-            mode = "Idle",
-            feedback = "ON",
-            setpoint = 21
-        };
-        await _entityManager.SetStateAsync("sensor.test_car_charger", JsonSerializer.Serialize(newState));
-
-    }
-    */
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
-        /*
-        /// # add ti wiki or so
-        /// [MQTT entity-types](https://www.home-assistant.io/integrations/mqtt/#configuration)
-        /// 
-        await TestDev().ConfigureAwait(false);
-        return;
-        */
-
-
-
         LogEvent.Ads.LogInformation("Establish connection.");
         try
         {
@@ -213,7 +59,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
             throw;
         }
 
-        LogEvent.Gw.LogTrace("Creating mappings...");
+        LogEvent.Gw.LogInformation("Creating mappings...");
         try
         {
             this.DeviceMappings = MappingFactory.CreateDevices(plc.MappedDevices);
@@ -234,7 +80,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
             throw;
         }
 
-        LogEvent.Hass.LogTrace("Binding static mappings...");
+        LogEvent.Hass.LogInformation("Binding static mappings...");
         // (BETA) ... hass-mappings
         // berücksichtigen dass es auch mappings gibt, die direkt auf entities im `IHaContext` context gemapped werden!
         /*
@@ -243,7 +89,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
             entityId = $"{mapping.Info.EntityTypeName}.{entityId}";
         */
 
-        LogEvent.Mqtt.LogTrace("Binding MQTT mappings...");
+        LogEvent.Mqtt.LogInformation("Binding MQTT mappings...");
         foreach (var mapping in Mappings)
         {
             try
@@ -256,32 +102,86 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
             }
         }
 
+        LogEvent.Ads.LogInformation($"Start read job for cyclic update.");
+        this.cyclicMappings = plc.CreateSymbolReadCommand(Mappings);
 
-
-        // (BETA) ... Set initial value
-        //    RESUME; // wenn alle entities erzeugt sind: nen SetValue über das ganze ding machen
-        // vorher noch aktuelle werte aus plc lesen?
-
-
-        // (BETA) ... TODO
-        /*
-        var avalOp = (AnalogMapping)Mappings.First(m => m.Entity.EntityId.Equals("input_number.test_number"));
-        avalOp.Value = 15;
-        //var aval = (AnalogMapping)Mappings.First(m => m.Entity.EntityId.Equals("sensor.test_tfl"));
-        //aval.Value = 20;
-
-        var bvalOp = (BooleanMapping)Mappings.First(m => m.Entity.EntityId.Equals("input_boolean.test_toggle"));
-        bvalOp.Value = true;
-
-        var mvalOp = (MultistateMapping)Mappings.First(m => m.Entity.EntityId.Equals("input_select.test_sel1"));
-        mvalOp.Value = 1;
-        */
+        scheduler.ScheduleAsync(CyclicUpdateMappingsAsync);
     }
     public void Dispose() => plc.Dispose();
     #endregion
+    #region Communication
+    private async Task<IMapping[]?> UpdateMappingsAsync(AutomationContext context, CancellationToken cancellationToken)
+    {
+        // Update (Gateway -> ...) dirty mappings:
+        var updated = await Mappings.UpdateWhereDirtyAsync(context, plc, entityManager, cancellationToken).ConfigureAwait(false);
+        if (!updated.IsEmpty())
+            LogEvent.Hass.LogTrace($"Updated {updated.Length} [GW -> {context}] mapping(s) in cyclic update.");
 
+        return (updated);
+    }
+    private async Task CyclicUpdateMappingsAsync(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        double factor = 1.0;
+
+        // Step 1) Update (Gateway -> PLC) dirty mappings:
+        var updated = await UpdateMappingsAsync(AutomationContext.Plc, cancellationToken)
+            .DetermineUpdateFactor(ref factor)
+            .ConfigureAwait(false);
+
+        // Step 2) Refresh actual PLC values (Gateway <- PLC):
+        var cmd = cyclicMappings;
+        if (!updated.IsEmpty())
+            // Create temporary sum command for all mappings, excluding the updated ones:
+            cmd = plc.CreateSymbolReadCommand(Mappings.Except(updated));
+
+        var changes = await cmd.ReadMappingsAsync(cancellationToken).ConfigureAwait(false);
+        if (changes > 0)
+            LogEvent.Ads.LogTrace($"Refreshed {changes} [GW <- {AutomationContext.Plc}] mapping(s) in cyclic update.");
+
+        // Step 3) Repeat update (Gateway -> HASS) dirty mappings due to the latest changes:
+        if (changes > 0)
+            await UpdateMappingsAsync(AutomationContext.Hass, cancellationToken)
+                .DetermineUpdateFactor(ref factor)
+                .ConfigureAwait(false);
+
+        // Schedule next update:
+        var delay = (config.GetValue<double>("CyclicUpdate") * factor);
+        scheduler.ScheduleAsync(TimeSpan.FromSeconds(delay), CyclicUpdateMappingsAsync);
+    }
+    #endregion
+
+
+    private IConfiguration config;
 
     private Plc plc;
+    private SumSymbolRead cyclicMappings;
+
     private IHaContext ha;
+    private IScheduler scheduler;
     private IMqttEntityManager entityManager;
+}
+
+internal static partial class Ext
+{
+    #region Constants
+    private static readonly TimeSpan BoostDuration = TimeSpan.FromSeconds(30);
+    #endregion
+
+
+    public static Task<IMapping[]?> DetermineUpdateFactor(this Task<IMapping[]?> source, ref double factor)
+    {
+        // Improve user experience by boosting update cycle whenever interaction is detected:
+        if (source.Result.Any(m => m.FunctionBlockType.IsOperationalType()))
+            stopBoost = (DateTime.Now + BoostDuration);
+
+        if (stopBoost is null)
+            ; // Don't touch updates.
+        else if (DateTime.Now < stopBoost)
+            factor = 0.3;
+        else
+            stopBoost = null;
+
+        return (source);
+    }
+    private static DateTime? stopBoost = null;
 }

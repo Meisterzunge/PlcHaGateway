@@ -8,6 +8,7 @@ using HassModel;
 using Microsoft.Extensions.Configuration;
 using TwinCAT;
 using TwinCAT.Ads;
+using TwinCAT.Ads.SumCommand;
 using TwinCAT.Ads.TypeSystem;
 using TwinCAT.TypeSystem;
 using Utilities.Core;
@@ -58,23 +59,64 @@ public enum PlcMappingParameter
     Enum
 }
 
-internal class Tc3_MiniFrame
+[AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+public class FunctionBlockAttribute : Attribute
+{
+    public FunctionBlockAttribute(string suffix, string? readSymbol = null, string? writeSymbol = null)
+    {
+        this.TypeName = $"{Tc3_MiniFrame.FunctionBlockPrefix}_{suffix}";
+        this.ReadSymbol = readSymbol;
+        this.WriteSymbol = writeSymbol;
+    }
+    
+
+    #region Properties.Management
+    /// <summary>
+    /// Sub symbol to target for read requests.
+    /// </summary>
+    public string? ReadSymbol { get; }
+    /// <summary>
+    /// Sub symbol to target for write requests.
+    /// </summary>
+    public string? WriteSymbol { get; }
+    #endregion
+    #region Properties
+    public string TypeName { get; }
+    #endregion
+}
+public enum FunctionBlock
+{
+    [FunctionBlock("AI", "fVal")]
+    AnalogInput,
+    [FunctionBlock("AO", "fVal", "fVal")]
+    AnalogOutput,
+    [FunctionBlock("AVal", "fVal", "fValue")]
+    AnalogValue,
+    [FunctionBlock("AValOp", "fVal", "fVal")]
+    AnalogOperationalValue,
+    [FunctionBlock("BI", "bVal")]
+    BinaryInput,
+    [FunctionBlock("BO", "bVal", "bVal")]
+    BinaryOutput,
+    [FunctionBlock("BVal", "bVal", "bValue")]
+    BinaryValue,
+    [FunctionBlock("BValOp", "bVal", "bVal")]
+    BinaryOperationalValue,
+    [FunctionBlock("MVal", "nVal", "nValue")]
+    MultistateValue,
+    [FunctionBlock("MValOp", "nVal", "nVal")]
+    MultistateOperationalValue,
+    [FunctionBlock("View")]
+    View
+}
+
+public class Tc3_MiniFrame
 {
     #region Constants
     public const string LibraryName = "Tc3_MiniFrame";
     public const string FunctionBlockPrefix = "FB_Mfr";
-    
-    public const string AnalogInput = $"{FunctionBlockPrefix}_AI";
-    public const string AnalogOutput = $"{FunctionBlockPrefix}_AO";
-    public const string AnalogValue = $"{FunctionBlockPrefix}_AVal";
-    public const string AnalogOperationalValue = $"{FunctionBlockPrefix}_AValOp";
-    public const string BinaryInput = $"{FunctionBlockPrefix}_BI";
-    public const string BinaryOutput = $"{FunctionBlockPrefix}_BO";
-    public const string BinaryValue = $"{FunctionBlockPrefix}_BVal";
-    public const string BinaryOperationalValue = $"{FunctionBlockPrefix}_BValOp";
-    public const string MultistateValue = $"{FunctionBlockPrefix}_MVal";
-    public const string MultistateOperationalValue = $"{FunctionBlockPrefix}_MValOp";
-    public const string View = $"{FunctionBlockPrefix}_View";
+
+    public static IReadOnlyDictionary<FunctionBlock, FunctionBlockAttribute> FunctionBlocks = UtilEnum.GetCustomAttributes<FunctionBlock, FunctionBlockAttribute>();
     #endregion
 }
 internal class Plc : IDisposable
@@ -117,14 +159,22 @@ internal class Plc : IDisposable
 
         // Load mapped symbols:
         var rootSymbols = res.Symbols
-            .OfMappedSymbols()
+            .WhereMapped()
             .ToList();
         this.MappedDevices = rootSymbols
-            .PopWhere(s => s.IsGatewayDataType(Tc3_MiniFrame.View.ToPlcType()))
+            .PopWhere(s => s.IsFunctionBlock(FunctionBlock.View))
             .ToArray();
         this.MappedSymbols = rootSymbols.ToArray();
     }
     public void Dispose() => session.Dispose();
+    #endregion
+    #region Communication
+    public SumSymbolRead CreateSymbolReadCommand(IEnumerable<IMapping> source) => new SumSymbolRead(session.Connection!, source
+        .GetTargetSymbols(AdsCommandId.Read)
+        .ToList(), SumAccessMode.IndexGroupIndexOffset);
+    public SumSymbolWrite CreateSymbolWriteCommand(IEnumerable<IMapping> source) => new SumSymbolWrite(session.Connection!, source
+        .GetTargetSymbols(AdsCommandId.Write)
+        .ToList());
     #endregion
 
 
@@ -134,6 +184,14 @@ internal class Plc : IDisposable
 
 internal static partial class Ext
 {
+    #region Constants
+    private static readonly FunctionBlock[] InputTypes = { FunctionBlock.AnalogInput, FunctionBlock.BinaryInput };
+    private static readonly FunctionBlock[] OutputTypes = { FunctionBlock.AnalogOutput, FunctionBlock.BinaryOutput };
+    private static readonly FunctionBlock[] ValueTypes = { FunctionBlock.AnalogValue, FunctionBlock.BinaryValue, FunctionBlock.MultistateValue };
+    private static readonly FunctionBlock[] OperationalTypes = { FunctionBlock.AnalogOperationalValue, FunctionBlock.BinaryOperationalValue, FunctionBlock.MultistateOperationalValue };
+    #endregion
+
+
     public static Plc CreatePlcFromSettings(this IConfiguration source) => new Plc(source.GetPlcNetId());
     public static AmsAddress GetPlcNetId(this IConfiguration source) => new AmsAddress(
         source.GetValue<string>("Plc:NetId")!,
@@ -152,8 +210,75 @@ internal static partial class Ext
             yield return (sub);
     }
 
+    public static bool IsInputType(this FunctionBlock source) => InputTypes.Contains(source);
+    public static bool IsOutputType(this FunctionBlock source) => OutputTypes.Contains(source);
+    public static bool IsValueType(this FunctionBlock source) => ValueTypes.Contains(source);
+    public static bool IsOperationalType(this FunctionBlock source) => OperationalTypes.Contains(source);
+    public static string GetTypeName(this FunctionBlock source) => Tc3_MiniFrame.FunctionBlocks[source].TypeName;
+    public static string ToPlcType(this FunctionBlock source) => Tc3_MiniFrame.FunctionBlocks[source].TypeName.ToPlcType();
+    public static string ToPlcType(this string source) => $"{Tc3_MiniFrame.LibraryName}.{source}";
+
     public static bool IsMiniFrameType(this ISymbol source) => IsMiniFrameType(source.DataType);
     public static bool IsMiniFrameType(this IDataType source) => source.Name.StartsWith(Tc3_MiniFrame.LibraryName);
 
     public static MappingParameterAttribute GetAttribute(this PlcMappingParameter source) => source.GetCustomAttribute<MappingParameterAttribute, PlcMappingParameter>();
+
+    internal static IEnumerable<ISymbol> GetTargetSymbols(this IEnumerable<IMapping> source, AdsCommandId command) => source.SelectMany(m => GetTargetSymbols(m, command));
+    internal static IEnumerable<ISymbol> GetTargetSymbols(this IMapping source, AdsCommandId command)
+    {
+        // TODO: Method returns a single symol so far. But it is intent to return more than one symbol some day..
+
+        var fb = source.Symbol.GetFunctionBlockType(out _);
+
+        string? targetSymbol;
+        switch (command)
+        {
+            case AdsCommandId.Read: targetSymbol = Tc3_MiniFrame.FunctionBlocks[fb].ReadSymbol; break;
+            case AdsCommandId.Write: targetSymbol = Tc3_MiniFrame.FunctionBlocks[fb].WriteSymbol; break;
+
+            default: throw new NotSupportedException($"Failed to determine symbols for not supported commands '{command}'!");
+        }
+        if (targetSymbol is null)
+            yield break;
+        else
+            // Yield and associate target symbol:
+            yield return (source.Symbol.SubSymbols[targetSymbol].Associate(source));
+    }
+
+    internal static async Task<int> ReadMappingsAsync(this SumSymbolRead source, CancellationToken cancellationToken)
+    {
+        var read = await source.Read2Async(cancellationToken).ConfigureAwait(false);
+        var changes = read.ValueResults
+            .Where(r => r.Succeeded) // TODO: Consider failed requests by settings entities to unreliable.
+            .Sum(r => r.Source
+                .TryGetAssociatedMapping()!
+                .SetValue(r.Value!, AutomationContext.Plc) ? 1 : 0);
+        return (changes);
+    }
+    internal static async Task WriteMappingsAsync(this IEnumerable<IMapping> source, Plc plc, CancellationToken cancellationToken)
+    {
+        var mappings = source
+            .Where(m => m.Value is not null)
+            .ToDictionary(
+                m => m,
+                m => m.Value
+            );
+        var res = await plc
+            .CreateSymbolWriteCommand(mappings.Keys)
+            .WriteAsync(mappings.Values.ToArray()!, cancellationToken)
+            .ConfigureAwait(false);
+
+        mappings.Keys.ResetDirty();
+    }
+
+    internal static ISymbol Associate(this ISymbol source, IMapping mapping)
+    {
+        if (mapping is null)
+            associatedMappings.Remove(source);
+        else
+            associatedMappings.AddOrUpdate(source, mapping);
+        return (source);
+    }
+    public static IMapping? TryGetAssociatedMapping(this ISymbol source) => (associatedMappings.TryGetValue(source, out var mapping) ? mapping : null);
+    private static readonly Dictionary<ISymbol, IMapping> associatedMappings = new();
 }
