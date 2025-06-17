@@ -23,8 +23,10 @@ There are several _mini framework function blocks_ (MFFB) in the `Tc3_MiniFrame`
 
   Should be used when aggregating MFFB's.
 
-  > The top most view is automatically considered a _virtual device_ wich will be mapped as such to the MQTT integration!
-    It will group all nested MFFB's.
+### Virtual device
+
+The top most view is automatically considered a _virtual device_ wich will be mapped as such to the MQTT integration!
+It will group all nested MFFB's.
 
 ## Attributes
 
@@ -32,11 +34,14 @@ Decorate the declared function blocks with the following attributes to associate
 
 Once created, a mapping will be used to keep the symbol and entity synchronous.
 
+[operational function blocks](#function-blocks) will be synchronized from _Home Assistant_ to _TwinCAT PLC_ and vice versa.
+All other [operational function blocks](#function-blocks) will synchronize from _TwinCAT PLC_ to _Home Assistant_ only!
+
 ### Mapping
 
 Creates a mapping between _PLC variable_ and _HA entity_.
 
-Possible declaraions:
+**Syntax:** 
 
 - Map some **explicit** entity:
 
@@ -54,28 +59,54 @@ Possible declaraions:
 > Note that declaring the **entity type** (like `binary_sensor`) is optional.
   It will be infered from the MFFB type if not specified.
 
+### Name
+
+Specifies a mapped entities _friendly name_.
+
+- **Syntax:** `{attribute 'PlcHa.Name' := 'name'}`
+- **Use-cases:**
+  All entities, wich are in case all [MFFB's](#function-blocks), but `FB_Mfr_View`.
+  Only exception is the [virtul device view](#virtual-device).
+
+> This attribute is mandatory!
+  If omitted, the [MFFB's](#function-blocks) instance name will be used as fallback.
+
+### Model
+
+Specifies a mapped devices _model name_.
+
+- **Syntax:** `{attribute 'PlcHa.Model' := 'model'}`
+- **Use-cases:** [virtul device](#virtual-device)
+
+> This attribute is mandatory!
+  If omitted, the _TwinCAT_ project name will be used as fallback.
+
+### Manufacturer
+
+Specifies a mapped devices _manufacturer name_.
+
+- **Syntax:** `{attribute 'PlcHa.Manufacturer' := 'manufacturer'}`
+- **Use-cases:** [virtul device](#virtual-device)
+
+> This attribute is optional.
+
+### Version
+
+Specifies a mapped devices _version_.
+
+- **Syntax:** `{attribute 'PlcHa.Version' := 'version'}`
+- **Use-cases:** [virtul device](#virtual-device)
+
+> This attribute is optional.
+  If omitted, but a [global version structure](https://infosys.beckhoff.com/english.php?content=../content/1033/tc3_plc_intro/714823819.html&id=) was declared within the _TwinCAT_ it will be used as fallback.
+
 ### Enum
 
 Specifies a [multistate mapping's](#function-blocks) enumeration type.
 Each entitie's state is mapped to it's distinct PLC context counter part.
 
-`{attribute 'PlcHa.Enum' := 'plc_enum_datatype'}`
-
-### Source
-
-Specifies a [mapping's](#mapping) source to read an entity's value from.
-
-`{attribute 'PlcHa.Source' := 'context'}`
-
-Supported contexts are:
-
-- `Ha`
-  Read value from _Home Assistant_ and write it to _TwinCAT PLC_.
-
-- `Plc`
-  Read value from _TwinCAT PLC_ and write it to _Home Assistant_.
-
-> If undefined, the source is set to `Plc` per default.
+- **Syntax:** `{attribute 'PlcHa.Enum' := 'plc_enum_datatype'}`
+- **Use-cases:** `FB_Mfr_MVal`, `FB_Mfr_MValOp`
 
 
 # PlcHa Gateway

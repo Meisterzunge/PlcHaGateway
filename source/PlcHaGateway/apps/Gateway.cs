@@ -62,7 +62,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         LogEvent.Gw.LogInformation("Creating mappings...");
         try
         {
-            this.DeviceMappings = MappingFactory.CreateDevices(plc.MappedDevices);
+            this.DeviceMappings = MappingFactory.CreateDevices(plc.MappedDevices, plc);
             this.SymbolMappings = MappingFactory.CreateMappings(plc.MappedSymbols);
             var totalMappings = Mappings.Count();
 

@@ -4,6 +4,9 @@
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
 	{attribute 'PlcHa.Mapping' := 'Test10'}
+	{attribute 'PlcHa.Name' := 'Test device No°10'}
+	{attribute 'PlcHa.Model' := 'TD10'}
+	{attribute 'PlcHa.Version' := '0.2.1.0'}
 	fbDevice10 : FB_TestDevice;
 	
 	{attribute 'PlcHa.Mapping' := 'sensor.test_tfl'}

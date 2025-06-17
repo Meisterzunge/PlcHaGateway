@@ -156,6 +156,59 @@ internal static class UtilEnum
     }
 }
 
+internal static class ExtType
+{
+    /// <summary>
+    /// Resolves all properties that are decorated with a <typeparamref name="TAttr"/> attribute.
+    /// A dictionary of resolved properties and attributes will be returned afterwards.
+    /// </summary>
+    public static Dictionary<PropertyInfo, TAttr> GetPropertyMap<TAttr>(this Type source)
+        where TAttr : Attribute
+    {
+        return (GetPropertyMap<TAttr, TAttr>(source, t => t.attrib));
+    }
+    /// <summary>
+    /// Resolves all properties that are decorated with a <typeparamref name="TAttr"/> attribute.
+    /// A dictionary of resolved properties and selected members will be returned afterwards.
+    /// </summary>
+    public static Dictionary<PropertyInfo, T> GetPropertyMap<TAttr, T>(this Type source, Func<(PropertyInfo prop, TAttr attrib), T?> selector)
+        where TAttr : Attribute
+    {
+        return (source
+            .GetProperties()
+            .Select(p => (prop: p, attrib: p.TryGetCustomAttribute<TAttr>()))
+            .Where(t => t.attrib is not null)
+            .Select(t => (prop: t.prop, val: selector(t)))
+            .Where(t => t.val is not null)
+            .ToDictionary(
+                t => t.prop,
+                t => t.val
+            )!);
+    }
+}
+internal static class ExtMemberInfo
+{
+    public static T GetCustomAttribute<T>(this PropertyInfo pInfo) where T : Attribute
+    {
+        if (TryGetCustomAttribute<T>(pInfo, out T _tAttrib))
+            return (_tAttrib);
+        else
+            throw new FieldAccessException(string.Format("Failed to get custom attribute of type '{0}'!", typeof(T).Name));
+    }
+    public static bool TryGetCustomAttribute<T>(this MemberInfo mInfo, out T tResult) where T : Attribute
+    {
+        var _dAttr = mInfo.GetCustomAttributes<T>();
+        if ((_dAttr != null) && (_dAttr.Count() >= 1))
+            tResult = _dAttr.First<T>();
+        else
+            tResult = null;
+        return (tResult != null);
+    }
+    public static T? TryGetCustomAttribute<T>(this MemberInfo member) where T : Attribute
+    {
+        return (TryGetCustomAttribute<T>(member, out var res) ? res : null);
+    }
+}
 internal static class ExtField
 {
     public static bool TryGetAttribute<T>(this FieldInfo field, out T attribute, bool inherit = false)
@@ -446,4 +499,8 @@ internal static class ExtEnumerable
         }
         yield break;
     }
+}
+internal static class ExtVersion
+{
+    public static double ToDouble(this Version source) => Convert.ToDouble($"{source.Major}.{source.Minor}{source.Build}{source.Revision}");
 }

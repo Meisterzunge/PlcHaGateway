@@ -16,6 +16,17 @@
     <Implicit_KindOfTask>{6304cb4d-c37b-499b-b8ce-8b8f9ff8b0e0}</Implicit_KindOfTask>
     <Implicit_Jitter_Distribution>{ec64e554-d7e9-453c-96d7-f93891bca4c1}</Implicit_Jitter_Distribution>
     <LibraryReferences>{7d643c02-6ffc-4d79-975f-e6704db38abb}</LibraryReferences>
+    <Company>Test company</Company>
+    <Released>false</Released>
+    <AllowChecksForLibrary>false</AllowChecksForLibrary>
+    <POUsForPropertyAccessIncluded>false</POUsForPropertyAccessIncluded>
+    <GlobalVersionStructureIncluded>true</GlobalVersionStructureIncluded>
+    <Title>TcTest</Title>
+    <ProjectVersion>0.0.0.1</ProjectVersion>
+    <DefaultNamespace>TcTest</DefaultNamespace>
+    <Placeholder>TcTest</Placeholder>
+    <Description>Test code for testing purposes.</Description>
+    <Author>Unknown</Author>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="PlcTask.TcTTO">
@@ -30,10 +41,14 @@
     <Compile Include="POUs\MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Version\Global_Version.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
     <Folder Include="GVLs" />
+    <Folder Include="Version" />
     <Folder Include="VISUs" />
     <Folder Include="POUs" />
   </ItemGroup>

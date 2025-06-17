@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using HassModel;
@@ -33,6 +34,13 @@ public enum PlcMappingParameter
     Mapping,
     [MappingParameter("plcha.name")]
     Name,
+    [MappingParameter("plcha.model")]
+    Model,
+    [MappingParameter("plcha.manufacturer")]
+    Manufacturer,
+    [MappingParameter("plcha.version")]
+    Version,
+
     [MappingParameter("plcha.deviceclass")]
     DeviceClass,
     [MappingParameter("plcha.icon", "icon")]
@@ -119,7 +127,22 @@ public class Tc3_MiniFrame
     public static IReadOnlyDictionary<FunctionBlock, FunctionBlockAttribute> FunctionBlocks = UtilEnum.GetCustomAttributes<FunctionBlock, FunctionBlockAttribute>();
     #endregion
 }
-internal class Plc : IDisposable
+
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+internal class SymbolPathAttribute : Attribute
+{
+    public SymbolPathAttribute(string rootSymbol, params string[] subSymbols)
+    {
+        this.RootSymbol = rootSymbol;
+        this.SubSymbols = subSymbols;
+    }
+
+
+    public string RootSymbol { get; }
+    public string[]? SubSymbols { get; }
+}
+
+internal class Plc : IDisposable, IProjectInfo
 {
     #region Constants
     static SessionSettings AdsSettings = SessionSettings.Default;
@@ -142,6 +165,11 @@ internal class Plc : IDisposable
     /// Mapped root symbols, <b>not</b> of type <c>view</c>.
     /// </summary>
     public ISymbol[] MappedSymbols { get; private set; }
+
+    [SymbolPath("TwinCAT_SystemInfoVarList._AppInfo", "ProjectName")]
+    public string? ProjectName { get; private set; }
+    [SymbolPath("Global_Version.", "sVersion")]
+    public string? Version { get; private set; }
     #endregion
 
 
@@ -154,8 +182,11 @@ internal class Plc : IDisposable
 
         // Load symbols:
         var symbolLoader = SymbolLoaderFactory.Create(session.Connection, SymbolLoaderSettings);
-        var res = await symbolLoader.GetSymbolsAsync(CancellationToken.None).ConfigureAwait(false);
+        var res = await symbolLoader.GetSymbolsAsync(cancel).ConfigureAwait(false);
         res.ThrowOnError();
+
+        // Load static symbols:
+        await ReadStaticSymbolsAsync(res, cancel).ConfigureAwait(false);
 
         // Load mapped symbols:
         var rootSymbols = res.Symbols
@@ -169,12 +200,48 @@ internal class Plc : IDisposable
     public void Dispose() => session.Dispose();
     #endregion
     #region Communication
+    /// <summary>
+    /// Determine and read any declared <see cref="SymbolPathAttribute">static symbol</see> values.
+    /// </summary>
+    private async Task ReadStaticSymbolsAsync(ResultSymbols symbols, CancellationToken cancel)
+    {
+        var staticSymbols = this.GetType()
+            .GetPropertyMap<SymbolPathAttribute>()
+            .ToDictionary(
+                s => s.Key,
+                s => TryGetSymbol(symbols, s.Value)
+            );
+        var staticRes = await new SumSymbolRead(session.Connection!, staticSymbols.Values.WhereNotNull().ToList())
+            .Read2Async(cancel)
+            .ConfigureAwait(false);
+        if (staticRes.Succeeded)
+        {
+            // Assign read values to declared properties:
+            staticRes.ValueResults!
+                .ToDictionary(
+                    r => staticSymbols.GetKeyOf(r.Source),
+                    r => r.Value
+                )
+                .ForEach(r => r.Key.SetValue(this, r.Value));
+        }
+    }
     public SumSymbolRead CreateSymbolReadCommand(IEnumerable<IMapping> source) => new SumSymbolRead(session.Connection!, source
         .GetTargetSymbols(AdsCommandId.Read)
         .ToList(), SumAccessMode.IndexGroupIndexOffset);
     public SumSymbolWrite CreateSymbolWriteCommand(IEnumerable<IMapping> source) => new SumSymbolWrite(session.Connection!, source
         .GetTargetSymbols(AdsCommandId.Write)
         .ToList());
+    #endregion
+
+
+    #region Helper
+    private ISymbol? TryGetSymbol(ResultSymbols symbols, SymbolPathAttribute symbolPath)
+    {
+        var symbol = symbols.Symbols!.LastOrDefault(s => s.InstancePath.StartsWith(symbolPath.RootSymbol));
+        foreach (var sub in symbolPath.SubSymbols)
+            symbol?.SubSymbols.TryGetInstance(sub, out symbol);
+        return (symbol);
+    }
     #endregion
 
 

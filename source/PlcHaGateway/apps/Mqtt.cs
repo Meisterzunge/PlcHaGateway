@@ -90,14 +90,18 @@ internal static partial class Ext
             // Determine or create device information:
             if (!devices.TryGetValue(source.Owner, out var device))
             {
-                devices.Add(source.Owner, device = new
+                var dev = (IDictionary<string, object>)(object)new ExpandoObject();
                 {
-                    identifiers = new string[] { source.Owner.Identifier },
-                    name = source.Owner.Symbol.InstanceName, // (BETA) ... DeviceAttrib: implement new attribute in PLC
-                    model = "ABC X1", // (BETA) ... DeviceAttrib: implement new attribute in PLC
-                    manufacturer = "Voltium", // (BETA) ... DeviceAttrib: implement new attribute in PLC
-                    sw_version = 1.22 // (BETA) ... DeviceAttrib: implement new attribute in PLC
-                });
+                    dev.Add("identifiers", new string[] { source.Owner.Identifier });
+                    dev.Add("name", source.Owner.Name);
+                    if (source.Owner.Model is not null)
+                        dev.Add("model", source.Owner.Model);
+                    if (source.Owner.Manufacturer is not null)
+                        dev.Add("manufacturer", source.Owner.Manufacturer);
+                    if (source.Owner.Version is not null)
+                        dev.Add("sw_version", source.Owner.Version.ToDouble());
+                }
+                devices.Add(source.Owner, device = dev);
             }
 
             // Create MQTT entity:

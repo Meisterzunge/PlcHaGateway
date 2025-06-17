@@ -34,19 +34,28 @@ public class MappingAttribute : Attribute
     public FunctionBlock[] SupportedPlcTypes { get; }
 }
 
+public interface IProjectInfo
+{
+    string? ProjectName { get; }
+    string? Version { get; }
+}
 /// <summary>
 /// Aggregates several <see cref="ISymbol">symbols</see> to be mapped for home assistant context.
 /// </summary>
 public class VirtualDevice : IEnumerable<ISymbol>
 {
-    public VirtualDevice(ISymbol symbol)
+    public VirtualDevice(ISymbol symbol, IProjectInfo? info = null)
     {
         this.Symbol = symbol;
+        this.info = info;
         this.Identifier = symbol.GetEntityPath();
-        this.Name = "TODO"; // (BETA) ... TODO
-        this.Model = "TODO"; // (BETA) ... TODO
-        this.Manufacturer = "TODO"; // (BETA) ... TODO
-        this.Version = 0.01; // (BETA) ... TODO
+        this.Name = symbol.TryGetMappingParameterAttribute(PlcMappingParameter.Name)?.Value ?? symbol.InstanceName;
+        this.Model = symbol.TryGetMappingParameterAttribute(PlcMappingParameter.Model)?.Value ?? info?.ProjectName;
+        this.Manufacturer = symbol.TryGetMappingParameterAttribute(PlcMappingParameter.Manufacturer)?.Value;
+
+        var ver = symbol.TryGetMappingParameterAttribute(PlcMappingParameter.Version)?.Value ?? info?.Version;
+        if (Version.TryParse(ver, out var v))
+            this.Version = v;
 
         this.Mappings = symbol.SubSymbols
             .Flatten()
@@ -63,9 +72,9 @@ public class VirtualDevice : IEnumerable<ISymbol>
     #region Properties
     public string Identifier { get; }
     public string Name { get; }
-    public string Model { get; }
-    public string Manufacturer { get; }
-    public double Version { get; }
+    public string? Model { get; }
+    public string? Manufacturer { get; }
+    public Version? Version { get; }
     #endregion
 
 
@@ -73,6 +82,9 @@ public class VirtualDevice : IEnumerable<ISymbol>
 
     IEnumerator IEnumerable.GetEnumerator() => Mappings.GetEnumerator();
     public IEnumerator<ISymbol> GetEnumerator() => (IEnumerator<ISymbol>)Mappings.GetEnumerator();
+
+
+    private IProjectInfo? info;
 }
 
 public enum AutomationContext
@@ -350,8 +362,8 @@ internal sealed class MappingFactory
     #endregion
 
 
-    public static VirtualDevice[] CreateDevices(IEnumerable<ISymbol> symbols) => symbols
-        .Select(s => new VirtualDevice(s))
+    public static VirtualDevice[] CreateDevices(IEnumerable<ISymbol> symbols, IProjectInfo? info = null) => symbols
+        .Select(s => new VirtualDevice(s, info))
         .ToArray();
     public static IMapping[] CreateMappings(IEnumerable<ISymbol> symbols) => symbols
         .Select(s => CreateMapping(s))
