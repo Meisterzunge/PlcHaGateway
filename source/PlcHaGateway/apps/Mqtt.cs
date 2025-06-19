@@ -68,6 +68,9 @@ internal static partial class Ext
     public static async Task CreateMqttEntity(this IMapping source, IMqttEntityManager entityManager)
     {
         // Validate:
+        if (source.Backend != IntegrationType.Mqtt)
+            throw new InvalidOperationException($"Failed to create MQTT entity for mapping of backend '{source.Backend}'!");
+            
         var mandatoryParams = source.Info.EntityType.GetAttribute().MandatoryParameters;
         var mappingParams = source.Symbol
             .GetMappingParameterAttributes()
@@ -105,7 +108,7 @@ internal static partial class Ext
             }
 
             // Create MQTT entity:
-            options = new EntityCreationOptions(source.DeviceClass, null, source.Name);
+            options = new EntityCreationOptions(source.DeviceClass, null, source.Name!);
             additionalConfig = new ExpandoObject();
             {
                 // Apply specified attributes:
@@ -146,13 +149,18 @@ internal static partial class Ext
             Action<string> OnSubscribe = async (state) =>
             {
                 LogEvent.Mqtt.LogTrace("Receive changed value of MQTT entity {0}.", entityId);
-
-                source.SetMqttValue(state);
-                await new[] { source }
-                    .WriteMappingsAsync(entityManager, false) // Do not reset dirty hence we want to update the PLC site!
-                    .ConfigureAwait(false);
+                try
+                {
+                    source.SetMqttValue(state);
+                    await new[] { source }
+                        .WriteMappingsAsync(entityManager, false) // Do not reset dirty hence we want to update the PLC site!
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    LogEvent.Mqtt.LogError(ex, "Failed to apply received value '{0}' of MQTT entity {1}.", state, entityId);
+                }
             };
-
             var command = await entityManager
                 .PrepareCommandSubscriptionAsync(entityId)
                 .ConfigureAwait(false);

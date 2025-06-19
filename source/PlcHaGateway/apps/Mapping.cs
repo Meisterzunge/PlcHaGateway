@@ -9,6 +9,7 @@ using System.Reflection.Metadata;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic;
 using NetDaemon.Extensions.MqttEntityManager;
 using NetDaemon.HassModel.Entities;
 using TwinCAT.Ads;
@@ -105,6 +106,7 @@ public interface IMapping
 {
     #region Properties.Management
     MappingAttribute Info { get; }
+    IntegrationType Backend { get; }
     FunctionBlock FunctionBlockType { get; }
     VirtualDevice? Owner { get; }
     ISymbol Symbol { get; }
@@ -132,6 +134,7 @@ public abstract class Mapping<T> : IMapping
     {
         var sym = (Symbol)symbol;
         var session = (AdsSession)sym.Connection!.Session!;
+        var entityInfo = symbol.GetEntityInfo();
 
         this.dataTypes = session.SymbolServer.DataTypes;
 
@@ -139,19 +142,18 @@ public abstract class Mapping<T> : IMapping
         this.FunctionBlockType = symbol.GetFunctionBlockType(out _);
         this.Owner = owner;
         this.Symbol = symbol;
-        this.EntityId = symbol.GetEntityPath();
-        this.Name = GetMappingParameter(PlcMappingParameter.Name).Value;
+        this.EntityId = entityInfo.Path;
+        this.Backend = entityInfo.Backend;
+        this.Name = TryGetMappingParameter(PlcMappingParameter.Name)?.Value ?? Symbol.InstanceName;
         this.DeviceClass = TryGetMappingParameter(PlcMappingParameter.DeviceClass)?.Value;
 
         LogEvent.Gw.LogTrace($"Created mapping for '{symbol.InstancePath}'.");
     }
 
 
-    #region Properties.Exceptions
-    protected Exception SetValueNotSupported => throw new NotSupportedException($"Failed to set value of not supported entity type '{Info.EntityType}'!");
-    #endregion
     #region Properties.Management
     public MappingAttribute Info { get; }
+    public IntegrationType Backend { get; private set; }
     public FunctionBlock FunctionBlockType { get; }
     public VirtualDevice? Owner { get; }
     public ISymbol Symbol { get; }
@@ -201,7 +203,7 @@ public abstract class Mapping<T> : IMapping
     {
         value = ConvertValue(value);
         if (value is null)
-            return (false); // throw new NotSupportedException($"Not allowed to assign value of null to '{this}'!");
+            throw new NotSupportedException($"Not allowed to assign value of null to '{this}'!");
         else if (value is T val)
             return (this.SetValue(val, source));
         else
@@ -422,6 +424,7 @@ internal static partial class Ext
     #endregion
 
 
+    public static IEnumerable<IMapping> OfBackend(this IEnumerable<IMapping> source, IntegrationType backend) => source.Where(m => m.Backend.Equals(backend));
     public static IEnumerable<IMapping> WhereDirty(this IEnumerable<IMapping> source, AutomationContext context) => source.Where(m => m.IsDirty(context));
     public static void ResetDirty(this IEnumerable<IMapping> source) => source.ForEach(m => m.ResetDirty());
     /// <summary>
@@ -442,10 +445,25 @@ internal static partial class Ext
                     break;
 
                 case AutomationContext.Hass:
-                    // TODO: Write HASS entities.
-                    // > for now, all changes are written to MQTT. Implement writing "static mapped" HASS entities via 'IHaContext'.
+                    var dirtyMap = dirtyMappings
+                        .GroupBy(m => m.Backend)
+                        .ToDictionary(
+                            grp => grp.Key,
+                            grp => grp.ToArray()
+                        );
 
-                    await dirtyMappings.WriteMappingsAsync(entityManager).ConfigureAwait(false);
+                    foreach (var item in dirtyMap)
+                    {
+                        Task updateTask;
+                        switch (item.Key)
+                        {
+                            case IntegrationType.Native: updateTask = item.Value.WriteMappingsAsync(); break;
+                            case IntegrationType.Mqtt: updateTask = item.Value.WriteMappingsAsync(entityManager); break;
+
+                            default: throw new NotSupportedException($"Failed to update dirty mapping of not supported backend '{item.Key}'!");
+                        }
+                        await updateTask.ConfigureAwait(false);
+                    }
                     break;
 
                 default: throw new NotSupportedException($"Failed to update dirty mappings of not supported context '{context}'!");
@@ -482,6 +500,16 @@ internal static partial class Ext
             yield return (parent);
             parent = parent.Parent;
         }
+    }
+    public static (string Path, IntegrationType Backend) GetEntityInfo(this ISymbol source)
+    {
+        var mapping = source.TryGetMappingParameterAttribute()?.Value;
+        if (mapping?.Contains('.') == true)
+            // Mappings binds to some specific entity, configured in home assistant:
+            return (mapping, IntegrationType.Native);
+        else
+            // Mappings specifies a new entity, wich will be configured via MQTT: 
+            return (GetEntityPath(source), IntegrationType.Mqtt);
     }
     public static string GetEntityPath(this ISymbol source) => string.Join('_', source
         .GetXPath()

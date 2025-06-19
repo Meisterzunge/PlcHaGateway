@@ -47,6 +47,25 @@ VAR
 	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
 	mvDsp : FB_Mfr_MVal;
 END_VAR
+VAR
+	// Bind to specific entities:
+	{attribute 'PlcHa.Mapping' := 'input_number.test_number'}
+	avDspNative : FB_Mfr_AVal;
+	{attribute 'PlcHa.Mapping' := 'input_number.test_number'}
+	avSpNative : FB_Mfr_AValOp := (fVal:=21.0);
+	
+	{attribute 'PlcHa.Mapping' := 'input_boolean.test_toggle'}
+	bvDspNative : FB_Mfr_BVal;
+	{attribute 'PlcHa.Mapping' := 'input_boolean.test_toggle'}
+	bvSpNative : FB_Mfr_BValOp := (bVal:=TRUE);
+	
+	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
+	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
+	mvDspNative : FB_Mfr_MVal := (nVal:=E_OffOnTest.Auto);
+	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
+	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
+	mvSpNative : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
+END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[ai();
@@ -60,7 +79,14 @@ bvSp();
 bvDsp(bValue := TRUE);
 
 mvSp();
-mvDsp(nValue:=E_OffOnTest.Auto);]]></ST>
+mvDsp(nValue:=E_OffOnTest.Auto);
+
+avDspNative();
+avSpNative();
+bvDspNative();
+bvSpNative();
+mvDspNative();
+mvSpNative();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

@@ -34,7 +34,7 @@ Decorate the declared function blocks with the following attributes to associate
 
 Once created, a mapping will be used to keep the symbol and entity synchronous.
 
-[operational function blocks](#function-blocks) will be synchronized from _Home Assistant_ to _TwinCAT PLC_ and vice versa.
+[Operational function blocks](#function-blocks) will be synchronized from _Home Assistant_ to _TwinCAT PLC_ and vice versa.
 All other [operational function blocks](#function-blocks) will synchronize from _TwinCAT PLC_ to _Home Assistant_ only!
 
 ### Mapping
@@ -43,21 +43,25 @@ Creates a mapping between _PLC variable_ and _HA entity_.
 
 **Syntax:** 
 
-- Map some **explicit** entity:
+- Map some **native** entity:
 
-  Specify the full qualified path of the target entity.
+  Specify the full qualified path, including the [domain](https://www.home-assistant.io/docs/configuration/entities_domains/#domains), of the target entity.
 
-  `{attribute 'PlcHa.Mapping' := 'full_haEntity_path'}`
+  `{attribute 'PlcHa.Mapping' := 'domain.haEntity_path'}`
+
+  > Use this mapping when binding to some **existing entity** wich may be part of some [integration](https://www.home-assistant.io/integrations) (e.g. [sun](https://www.home-assistant.io/integrations/sun)).
+
+  > [Physical MFFB's](#function-blocks) (e.g. `FB_Mfr_AO` or `FB_Mfr_BI`) are not allowed for _native_ mappings!
 
 - Map some **relative** entity:
 
-  Useful when aggregating at least two MFFB's (e.g. `FB_Mfr_View`.`FB_Mfr_BI`).
-  The target **entity's full qualified path will be concatenated** from all the aggregated MFFB's mapping attribute decorations.
-  
-  `{attribute 'PlcHa.Mapping' := 'ha_entity_name'}`
+  Specify the entity path.
 
-> Note that declaring the **entity type** (like `binary_sensor`) is optional.
-  It will be infered from the MFFB type if not specified.
+  `{attribute 'PlcHa.Mapping' := 'haEntity_path'}`
+
+  When aggregating at least two [MFFB's](#function-blocks) (e.g. `FB_Mfr_View`.`FB_Mfr_BI`) the resulting entity's **full qualified path will be concatenated** from all the aggregated [MFFB's](#function-blocks) _mapping_ attribute decorations.
+  
+  > The entities [domain](https://www.home-assistant.io/docs/configuration/entities_domains/#domains) will be infered from the [MFFB](#function-blocks) type used.
 
 ### Name
 

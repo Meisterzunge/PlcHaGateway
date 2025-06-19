@@ -1,41 +1,129 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using NetDaemon.HassModel.Entities;
+using TwinCAT.TypeSystem;
+using Utilities.Core;
 
-// [Legacy code]
 
-// AnalogMapping.SetValue:
-/*
-switch (Info.EntityType)
+public enum IntegrationType
 {
-    /// <see href="??">
-    case EntityType.Sensor: throw new NotImplementedException("TODO");
-    /// <see href="https://www.home-assistant.io/integrations/input_number/#actions">
-    case EntityType.InputNumber: Entity.CallService("set_value", new { value = value }); break;
-    default: throw SetValueNotSupported;
+    /// <summary>
+    /// Common <see cref="https://developers.home-assistant.io/docs/core/entity/">home assistant entity</see>.
+    /// </summary>
+    Native,
+    /// <summary>
+    /// <see cref="https://www.home-assistant.io/integrations/mqtt">MQTT Integration</see>.
+    /// </summary>
+    Mqtt
 }
-*/
 
-// BooleanMapping.SetValue:
-/*
-
-switch (Info.EntityType)
+internal static partial class Ext
 {
-    /// <see href="??">
-    case EntityType.BinarySensor: throw new NotImplementedException("TODO");
-    /// <see href="https://www.home-assistant.io/integrations/input_boolean/#actions">
-    case EntityType.InputBoolean: Entity.CallService((value == true) ? "turn_on" : "turn_off"); break;
-    default: throw SetValueNotSupported;
+    public static Task BindToNativeEntity(this IMapping source, IHaContext ha)
+    {
+        // Validate:
+        if (source.Backend != IntegrationType.Native)
+            throw new InvalidOperationException($"Failed to create native entity for mapping of backend '{source.Backend}'!");
+        if (source.FunctionBlockType.IsPhysicalType())
+            throw new InvalidOperationException($"Failed to create native entity for mapping of physical type '{source.FunctionBlockType}'!");
+
+        var entity = ha
+            .GetAllEntities()
+            .FirstOrDefault(e => e.EntityId.Equals(source.EntityId));
+        if (entity is null)
+            throw new NullReferenceException($"Missing native entity '{source.EntityId}'!");
+
+        // Associate native entity:
+        source.Associate(entity);
+
+        // Subscribe to native entity:
+        Action<StateChange> OnSubscribe = (state) =>
+        {
+            LogEvent.Hass.LogTrace("Receive changed value of native entity {0}.", state.Entity.EntityId);
+            try
+            {
+                source.SetNativeValue(state.New);
+            }
+            catch (Exception ex)
+            {
+                LogEvent.Hass.LogError(ex, "Failed to apply received value '{0}' of MQTT entity {1}.", state.New?.State, state.Entity.EntityId);
+            }
+        };
+        entity
+            .StateChanges()
+            .Subscribe(OnSubscribe);
+
+        // Set initial value:
+        source.SetNativeValue(entity.EntityState);
+
+        return (Task.CompletedTask);
+    }
+
+    /// <summary>
+    /// Writes mappings to HASS.
+    /// </summary>
+    public static Task WriteMappingsAsync(this IEnumerable<IMapping> source) => Task.WhenAll(source.Select(WriteMappingAsync));
+    /// <summary>
+    /// Writes mapping to HASS.
+    /// </summary>
+    public static Task WriteMappingAsync(this IMapping source)
+    {
+        if (!source.FunctionBlockType.IsOperationalType())
+            throw new InvalidOperationException($"Failed to write mapping of non-operational native entity '{source}'!");
+
+        var entity = source.GetAssociatedEntity();
+        switch (source)
+        {
+            /// <see href="https://www.home-assistant.io/integrations/input_number/#actions">
+            case AnalogMapping aMapping: entity.CallService("set_value", new { value = source.Value }); break;
+            /// <see href="https://www.home-assistant.io/integrations/input_boolean/#actions">
+            case BooleanMapping bMapping: entity.CallService((source.Value?.Equals(true) == true) ? "turn_on" : "turn_off"); break;
+            /// <see href="https://www.home-assistant.io/integrations/input_select/#actions">
+            case MultistateMapping mMapping: entity.CallService("select_option", new { option = mMapping.State }); break;
+
+            default: throw new NotSupportedException($"Failed to write mapping of not supported type '{source.GetType().Name}'!");
+        }
+        source.ResetDirty();
+
+        return (Task.CompletedTask);
+    }
+
+    internal static Entity? Associate(this IMapping source, Entity? entity)
+    {
+        if (entity is null)
+            associatedHassEntities.Remove(source);
+        else
+            associatedHassEntities.AddOrUpdate(source, entity);
+        return (entity);
+    }
+    public static Entity GetAssociatedEntity(this IMapping source) => associatedHassEntities[source];
+    public static Entity? TryGetAssociatedEntity(this IMapping source) => (associatedHassEntities.TryGetValue(source, out var mapping) ? mapping : null);
+    private static readonly Dictionary<IMapping, Entity> associatedHassEntities = new();
+
+
+    #region Helper
+    private static void SetNativeValue(this IMapping source, EntityState? state)
+    {
+        // Convert value:
+        object? val = state?.State;
+        switch (source)
+        {
+            case null: break;
+
+            case AnalogMapping aMapping: break;
+            case BooleanMapping bMapping:
+                val = state?.State!.Equals("on", StringComparison.InvariantCultureIgnoreCase);
+                break;
+            case MultistateMapping mMapping: break;
+
+            default: throw new NotSupportedException($"Failed to obtain value from not supported mapping of type '{source.GetType().Name}'!");
+        }
+
+        source!.SetValue(val, AutomationContext.Hass);
+    }
+    #endregion
+    #region Helper.Exceptions
+    static Exception WriteMappingNotSupported(EntityType type) => throw new NotSupportedException($"Failed to write mapping of not supported entity type '{type}'!");
+    #endregion
 }
-*/
-
-// MultistateMapping.SetValue:
-/*
-switch (Info.EntityType)
-{
-
-    /// <see href="??">
-    case EntityType.Sensor: throw new NotImplementedException("TODO");
-    /// <see href="https://www.home-assistant.io/integrations/input_select/#actions">
-    case EntityType.InputMultistate: Entity.CallService("select_option", new { option = Options[value!.Value] }); break;
-
-    default: throw SetValueNotSupported;
-}
-*/

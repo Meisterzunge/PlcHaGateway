@@ -252,6 +252,7 @@ internal class Plc : IDisposable, IProjectInfo
 internal static partial class Ext
 {
     #region Constants
+    private static readonly FunctionBlock[] PhysicalTypes = { FunctionBlock.AnalogInput, FunctionBlock.AnalogOutput, FunctionBlock.BinaryInput, FunctionBlock.BinaryOutput };
     private static readonly FunctionBlock[] InputTypes = { FunctionBlock.AnalogInput, FunctionBlock.BinaryInput };
     private static readonly FunctionBlock[] OutputTypes = { FunctionBlock.AnalogOutput, FunctionBlock.BinaryOutput };
     private static readonly FunctionBlock[] ValueTypes = { FunctionBlock.AnalogValue, FunctionBlock.BinaryValue, FunctionBlock.MultistateValue };
@@ -277,6 +278,7 @@ internal static partial class Ext
             yield return (sub);
     }
 
+    public static bool IsPhysicalType(this FunctionBlock source) => PhysicalTypes.Contains(source);
     public static bool IsInputType(this FunctionBlock source) => InputTypes.Contains(source);
     public static bool IsOutputType(this FunctionBlock source) => OutputTypes.Contains(source);
     public static bool IsValueType(this FunctionBlock source) => ValueTypes.Contains(source);
@@ -312,6 +314,15 @@ internal static partial class Ext
             yield return (source.Symbol.SubSymbols[targetSymbol].Associate(source));
     }
 
+    public static IEnumerable<IMapping> OfCyclicallyReadable(this IEnumerable<IMapping> source) => source.Where(IsCyclicallyReadable);
+    public static bool IsCyclicallyReadable(this IMapping source)
+    {
+        if (source.Backend == IntegrationType.Native)
+            return (source.FunctionBlockType.IsOperationalType());
+        else
+            return (true);
+    }
+
     internal static async Task<int> ReadMappingsAsync(this SumSymbolRead source, CancellationToken cancellationToken)
     {
         var read = await source.Read2Async(cancellationToken).ConfigureAwait(false);
@@ -341,11 +352,11 @@ internal static partial class Ext
     internal static ISymbol Associate(this ISymbol source, IMapping mapping)
     {
         if (mapping is null)
-            associatedMappings.Remove(source);
+            associatedPlcMappings.Remove(source);
         else
-            associatedMappings.AddOrUpdate(source, mapping);
+            associatedPlcMappings.AddOrUpdate(source, mapping);
         return (source);
     }
-    public static IMapping? TryGetAssociatedMapping(this ISymbol source) => (associatedMappings.TryGetValue(source, out var mapping) ? mapping : null);
-    private static readonly Dictionary<ISymbol, IMapping> associatedMappings = new();
+    public static IMapping? TryGetAssociatedMapping(this ISymbol source) => (associatedPlcMappings.TryGetValue(source, out var mapping) ? mapping : null);
+    private static readonly Dictionary<ISymbol, IMapping> associatedPlcMappings = new();
 }
