@@ -20,7 +20,7 @@ namespace HassModel;
 /// Manage to connect <i>Home Assistant</i> and <i>TwinCAT PLC</i>.
 /// </summary>
 [NetDaemonApp]
-public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
+public partial class PlcHaGatewayApp : IAsyncInitializable, IDisposable
 {
     public PlcHaGatewayApp(IConfiguration config, ILogger<PlcHaGatewayApp> logger, IHaContext context, IScheduler scheduler, IMqttEntityManager entityManager)
     {
@@ -80,6 +80,16 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         {
             LogEvent.Gw.LogError(ex, "Failed to create mappings.");
             throw;
+        }
+
+        LogEvent.Gw.LogInformation("Generate export files.");
+        try
+        {
+            await Task.WhenAll(CreateExportFilesAsync(cancellationToken)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LogEvent.Gw.LogError(ex, "Failed to generate export file.");
         }
 
         LogEvent.Gw.LogInformation("Binding mappings...");

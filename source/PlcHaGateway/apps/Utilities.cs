@@ -2,8 +2,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Utilities.Core;
@@ -11,6 +13,20 @@ namespace Utilities.Core;
 
 internal static class UtilAssembly
 {
+    /// <inheritdoc cref="Assembly.Location"/>
+    public static string GetLocation(Assembly? aAssembly = null)
+    {
+        if (aAssembly == null)
+            aAssembly = Assembly.GetExecutingAssembly();
+        return (aAssembly.Location);
+    }
+    /// <inheritdoc cref="GetLocation(Assembly)"/>
+    public static string GetLocationFolder(Assembly aAssembly = null)
+    {
+        if (aAssembly == null)
+            aAssembly = Assembly.GetExecutingAssembly();
+        return (Path.GetDirectoryName(GetLocation(aAssembly)));
+    }
     /// <inheritdoc cref="GetDefinedTypesOf{TAttrib}(Assembly[])"/>
     /// <param name="assembly">Assembly to query.</param>
     /// <param name="includeReferencedAssemblies">Queries types of referenced assemblies.</param>
@@ -228,6 +244,17 @@ internal static class ExtField
             return (tResult);
         else
             throw new KeyNotFoundException(string.Format("Did not found attribute of type '{0}'!", typeof(T).Name));
+    }
+}
+internal static class ExtByte
+{
+    public static string ToHashString(this byte[] source)
+    {
+        var builder = new StringBuilder();
+        {
+            source.ForEach(b => builder.Append(b.ToString("x2")));
+        }
+        return (builder.ToString());
     }
 }
 internal static class ExtEnum
