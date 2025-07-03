@@ -368,6 +368,20 @@ internal static class ExtDictionary
         else
             throw new NotImplementedException($"Failed to obtain key due to conditional missmatch!");
     }
+    public static bool TryPop<T, U>(this IDictionary<T, U> source, T key, out U? value)
+    {
+        if (source.ContainsKey(key))
+        {
+            value = source[key];
+            source.Remove(key);
+            return (true);
+        }
+        else
+        {
+            value = default;
+            return (false);
+        }
+    }
 
     /// <summary>
     /// Adds a key/value-pair if the key is new.

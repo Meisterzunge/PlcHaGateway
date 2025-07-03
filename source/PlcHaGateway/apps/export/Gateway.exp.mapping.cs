@@ -17,7 +17,7 @@ namespace HassModel;
 public partial class PlcHaGatewayApp
 {
     #region Constants
-    static readonly string MappingExportFilePath = Path.Combine(UtilAssembly.GetLocationFolder(), "exp.mapping.json");
+    static readonly string MappingExportFilePath = Path.Combine(ExportFolderPath, "mapping.json");
     static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
     {
         WriteIndented = true,

@@ -109,6 +109,7 @@ public interface IMapping
     VirtualDevice? Owner { get; }
     ISymbol Symbol { get; }
     string EntityId { get; }
+    string FullyQualifiedId => $"{Info.EntityTypeName}.{EntityId}";
 
     Modification? LastModified { get; }
     #endregion

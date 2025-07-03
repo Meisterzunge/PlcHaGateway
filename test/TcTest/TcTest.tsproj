@@ -10,7 +10,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{3157DEE8-5CD8-4FC4-89E0-6ED99BADD713}" Name="TcTest" PrjFilePath="TcTest\TcTest.plcproj" TmcFilePath="TcTest\TcTest.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{EBF5C16A-88CC-8CCD-04B7-0E5F18BF63A6}" TmcPath="TcTest\TcTest.tmc">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{BECBFE8B-C5CB-12B8-420F-F199D5FA8491}" TmcPath="TcTest\TcTest.tmc">
 					<Name>TcTest Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="2" AreaNo="1">
@@ -27,14 +27,6 @@
 					<Vars VarGrpType="1">
 						<Name>PlcTask Inputs</Name>
 						<Var>
-							<Name>MAIN.test_ai.nRawStatus</Name>
-							<Type>UINT</Type>
-						</Var>
-						<Var>
-							<Name>MAIN.test_ai.nRawData</Name>
-							<Type>INT</Type>
-						</Var>
-						<Var>
 							<Name>MAIN.fbDevice10.ai.nRawStatus</Name>
 							<Type>UINT</Type>
 						</Var>
@@ -47,11 +39,11 @@
 							<Type>BOOL</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.fbDevice10.aiNative.nRawStatus</Name>
+							<Name>MAIN.test_ai.nRawStatus</Name>
 							<Type>UINT</Type>
 						</Var>
 						<Var>
-							<Name>MAIN.fbDevice10.aiNative.nRawData</Name>
+							<Name>MAIN.test_ai.nRawData</Name>
 							<Type>INT</Type>
 						</Var>
 					</Vars>

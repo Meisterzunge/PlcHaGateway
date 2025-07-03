@@ -70,7 +70,7 @@ internal static partial class Ext
         // Validate:
         if (source.Backend != IntegrationType.Mqtt)
             throw new InvalidOperationException($"Failed to create MQTT entity for mapping of backend '{source.Backend}'!");
-            
+
         var mandatoryParams = source.Info.EntityType.GetAttribute().MandatoryParameters;
         var mappingParams = source.Symbol
             .GetMappingParameterAttributes()
@@ -138,17 +138,17 @@ internal static partial class Ext
             }
         }
 
-        var entityId = $"{source.Info.EntityTypeName}.{source.EntityId}";
-        LogEvent.Mqtt.LogTrace("Creating MQTT entity {0}.", entityId);
+        var fullId = source.FullyQualifiedId;
+        LogEvent.Mqtt.LogTrace("Creating MQTT entity {0}.", fullId);
 
-        await entityManager.CreateAsync(entityId, options, additionalConfig).ConfigureAwait(false);
+        await entityManager.CreateAsync(fullId, options, additionalConfig).ConfigureAwait(false);
 
         // Subscribe to MQTT entity:
         if (source.FunctionBlockType.IsOperationalType())
         {
             Action<string> OnSubscribe = async (state) =>
             {
-                LogEvent.Mqtt.LogTrace("Receive changed value of MQTT entity {0}.", entityId);
+                LogEvent.Mqtt.LogTrace("Receive changed value of MQTT entity {0}.", fullId);
                 try
                 {
                     source.SetMqttValue(state);
@@ -158,11 +158,11 @@ internal static partial class Ext
                 }
                 catch (Exception ex)
                 {
-                    LogEvent.Mqtt.LogError(ex, "Failed to apply received value '{0}' of MQTT entity {1}.", state, entityId);
+                    LogEvent.Mqtt.LogError(ex, "Failed to apply received value '{0}' of MQTT entity {1}.", state, fullId);
                 }
             };
             var command = await entityManager
-                .PrepareCommandSubscriptionAsync(entityId)
+                .PrepareCommandSubscriptionAsync(fullId)
                 .ConfigureAwait(false);
             command.Subscribe(OnSubscribe);
         }

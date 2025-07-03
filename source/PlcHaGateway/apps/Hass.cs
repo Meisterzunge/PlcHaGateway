@@ -32,7 +32,7 @@ internal static partial class Ext
             .GetAllEntities()
             .FirstOrDefault(e => e.EntityId.Equals(source.EntityId));
         if (entity is null)
-            throw new NullReferenceException($"Missing native entity '{source.EntityId}'!");
+            throw new NullReferenceException($"Missing native entity '{source.FullyQualifiedId}'!");
 
         // Associate native entity:
         source.Associate(entity);

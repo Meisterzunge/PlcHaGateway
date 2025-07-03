@@ -35,5 +35,6 @@
         <PackageReference Include="NetDaemon.Extensions.Scheduling" Version="25.18.1" />
         <PackageReference Include="NetDaemon.Extensions.Logging" Version="25.18.1" />
         <PackageReference Include="NetDaemon.Extensions.Tts" Version="25.18.1" />
+        <PackageReference Include="YamlDotNet" Version="16.3.0" />
     </ItemGroup>
 </Project>
