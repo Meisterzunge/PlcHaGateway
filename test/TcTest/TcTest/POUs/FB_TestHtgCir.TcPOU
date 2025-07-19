@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestHtgCir" Id="{db2872f4-268f-4966-8a69-30dceb89a9b2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestHtgCir EXTENDS FB_Mfr_View
+VAR
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Flow temperature'}
+	{attribute 'PlcHa.DeviceClass' := 'temperature'}
+	{attribute 'PlcHa.Icon' := 'mdi:temperature-celsius'}
+	{attribute 'PlcHa.Unit' := '°C'}
+	TFl : FB_Mfr_AI;
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Return temperature'}
+	{attribute 'PlcHa.DeviceClass' := 'temperature'}
+	{attribute 'PlcHa.Icon' := 'mdi:temperature-celsius'}
+	{attribute 'PlcHa.Unit' := '°C'}
+	TRt : FB_Mfr_AI;
+	{attribute 'PlcHa.Mapping' := 'Vlv'}
+	{attribute 'PlcHa.Name' := 'Valve'}
+	{attribute 'PlcHa.Icon' := 'mdi:valve'}
+	{attribute 'PlcHa.Unit' := '%'}
+	Valve : FB_Mfr_AO;
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Flow temperature setpoint'}
+	{attribute 'PlcHa.Unit' := '°C'}
+	{attribute 'PlcHa.Min' := '10'}
+	{attribute 'PlcHa.Max' := '30'}
+	{attribute 'PlcHa.Mode' := 'box'}
+	SpTFl : FB_Mfr_AValOp := (fVal:=21.0);
+	
+	{attribute 'PlcHa.Mapping' := 'Pu'}
+	{attribute 'PlcHa.Name' := 'Pump'}
+	{attribute 'PlcHa.Icon' := 'mdi:pump'}
+	Pump : FB_Mfr_BO;
+
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Operation mode'}
+	OpMod : FB_TestOpMode;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[TFl();
+TRt();
+Valve();
+SpTFl();
+
+Pump();
+
+OpMod();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

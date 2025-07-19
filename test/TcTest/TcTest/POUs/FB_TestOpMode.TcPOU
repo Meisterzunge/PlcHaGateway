@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestOpMode" Id="{244631cf-403d-414a-a4ba-b157a12b160a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestOpMode EXTENDS FB_Mfr_View
+VAR
+	{attribute 'PlcHa.Mapping' := 'OpModMan'}
+	{attribute 'PlcHa.Name' := 'Manual operation mode'}
+	{attribute 'PlcHa.Enum' := 'E_AutoOffOn'}
+	OpModMan : FB_Mfr_MValOp := (nVal:=E_AutoOffOn.Auto);
+	{attribute 'PlcHa.Mapping' := 'PrOpMod'}
+	{attribute 'PlcHa.Name' := 'Present operation mode'}
+	{attribute 'PlcHa.Enum' := 'E_OffOn'}
+	PrOpMod : FB_Mfr_MVal;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+OpModMan();
+PrOpMod(nValue:=E_OffOn.Off);]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

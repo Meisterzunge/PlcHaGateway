@@ -9,7 +9,7 @@
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
     <Name>TcTest</Name>
-    <ProgramVersion>3.1.4026.9</ProgramVersion>
+    <ProgramVersion>3.1.4026.17</ProgramVersion>
     <Application>{af8f3e09-1cd0-4737-8f86-2371e816649d}</Application>
     <TypeSystem>{6393a7ca-a609-467e-8eb6-70fadaccfcff}</TypeSystem>
     <Implicit_Task_Info>{c3a12375-8124-45b9-b064-5136c0487fe3}</Implicit_Task_Info>
@@ -32,10 +32,19 @@
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\E_OffOnTest.TcDUT">
+    <Compile Include="POUs\E_AutoOffOn.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\E_OffOn.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\FB_TestDevice.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\FB_TestHtgCir.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\FB_TestOpMode.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\MAIN.TcPOU">

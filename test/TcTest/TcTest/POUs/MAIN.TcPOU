@@ -8,6 +8,11 @@ VAR
 	{attribute 'PlcHa.Model' := 'TD10'}
 	{attribute 'PlcHa.Version' := '0.2.1.0'}
 	fbDevice10 : FB_TestDevice;
+	{attribute 'PlcHa.Mapping' := 'HtgCir01'}
+	{attribute 'PlcHa.Name' := 'Heating circuit Floor'}
+	{attribute 'PlcHa.Model' := 'Htg_Cir01'}
+	{attribute 'PlcHa.Version' := '0.1.2.3'}
+	fbHtgCir : FB_TestHtgCir;
 	
 	{attribute 'PlcHa.Mapping' := 'sensor.test_tfl'}
 	{attribute 'PlcHa.Name' := 'Some flow temp'}
@@ -25,14 +30,17 @@ VAR
 	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
 	{attribute 'PlcHa.Name' := 'Manual operation'}
 	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
-	test_sel1 : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
+	test_sel1 : FB_Mfr_MValOp := (nVal:=E_AutoOffOn.Auto);
 END_VAR
 VAR
-	_dummy : E_OffOnTest; // Just to make known to TcTypeSystem
+	// Just to make known to TcTypeSystem:
+	_dummy1 : E_AutoOffOn;
+	_dummy2 : E_OffOn;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[fbDevice10();
+fbHtgCir();
 
 test_number();
 test_toggle();

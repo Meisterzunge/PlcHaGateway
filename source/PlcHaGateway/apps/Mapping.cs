@@ -107,6 +107,10 @@ public interface IMapping
     IntegrationType Backend { get; }
     FunctionBlock FunctionBlockType { get; }
     VirtualDevice? Owner { get; }
+    /// <summary>
+    /// Parent symbol, if differs from <see cref="Owner"/>.
+    /// </summary>
+    ISymbol? Parent { get; }
     ISymbol Symbol { get; }
     string EntityId { get; }
     string FullyQualifiedId => $"{Info.EntityTypeName}.{EntityId}";
@@ -140,6 +144,8 @@ public abstract class Mapping<T> : IMapping
         this.Info = info;
         this.FunctionBlockType = symbol.GetFunctionBlockType(out _);
         this.Owner = owner;
+        if ((owner?.Symbol is not null) && (symbol.Parent is not null) && (owner?.Symbol != symbol.Parent))
+            this.Parent = symbol.Parent;
         this.Symbol = symbol;
         this.EntityId = entityInfo.Path;
         this.Backend = entityInfo.Backend;
@@ -155,6 +161,7 @@ public abstract class Mapping<T> : IMapping
     public IntegrationType Backend { get; private set; }
     public FunctionBlock FunctionBlockType { get; }
     public VirtualDevice? Owner { get; }
+    public ISymbol? Parent { get; }
     public ISymbol Symbol { get; }
     public string EntityId { get; }
 

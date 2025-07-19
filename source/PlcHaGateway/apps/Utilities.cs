@@ -257,6 +257,28 @@ internal static class ExtByte
         return (builder.ToString());
     }
 }
+internal static class ExtString
+{
+    public static string FromCamelCase(this string source) 
+    {
+        if (string.IsNullOrEmpty(source))
+            return (source);
+
+        var result = new StringBuilder();
+        for (int i = 0; i < source.Length; i++)
+        {
+            var c = source[i];
+            if (char.IsUpper(c))
+            {
+                c = char.ToLower(c);
+                if (i > 0)
+                    result.Append('_');
+            }
+            result.Append(c);
+        }
+        return (result.ToString());
+    }
+}
 internal static class ExtEnum
 {
     public static TAttrib GetCustomAttribute<TAttrib, TEnum>(this TEnum value, bool inherit = false)

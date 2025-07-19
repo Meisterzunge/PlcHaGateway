@@ -5,7 +5,6 @@
 VAR
 	{attribute 'PlcHa.Mapping' := 'ai'}
 	{attribute 'PlcHa.Name' := 'Some analog input'}
-	{attribute 'PlcHa.DeviceClass' := 'temperature'}
 	{attribute 'PlcHa.Icon' := 'mdi:temperature-celsius'}
 	{attribute 'PlcHa.Unit' := '°C'}
 	ai : FB_Mfr_AI;
@@ -40,11 +39,11 @@ VAR
 	
 	{attribute 'PlcHa.Mapping' := 'mvSp'}
 	{attribute 'PlcHa.Name' := 'Some multistate setpoint'}
-	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
-	mvSp : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
+	{attribute 'PlcHa.Enum' := 'E_AutoOffOn'}
+	mvSp : FB_Mfr_MValOp := (nVal:=E_AutoOffOn.Auto);
 	{attribute 'PlcHa.Mapping' := 'mvDsp'}
 	{attribute 'PlcHa.Name' := 'Some multistate display value'}
-	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
+	{attribute 'PlcHa.Enum' := 'E_OffOn'}
 	mvDsp : FB_Mfr_MVal;
 END_VAR
 VAR
@@ -60,11 +59,11 @@ VAR
 	bvSpNative : FB_Mfr_BValOp := (bVal:=TRUE);
 	
 	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
-	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
-	mvDspNative : FB_Mfr_MVal := (nVal:=E_OffOnTest.Auto);
+	{attribute 'PlcHa.Enum' := 'E_OffOn'}
+	mvDspNative : FB_Mfr_MVal := (nVal:=E_OffOn.Off);
 	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
-	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
-	mvSpNative : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
+	{attribute 'PlcHa.Enum' := 'E_AutoOffOn'}
+	mvSpNative : FB_Mfr_MValOp := (nVal:=E_AutoOffOn.Auto);
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -79,7 +78,7 @@ bvSp();
 bvDsp(bValue := TRUE);
 
 mvSp();
-mvDsp(nValue:=E_OffOnTest.Auto);
+mvDsp(nValue:=E_OffOn.Off);
 
 avDspNative();
 avSpNative();
