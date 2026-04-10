@@ -227,7 +227,7 @@ internal class Plc : IDisposable, IProjectInfo
     }
     public SumSymbolRead CreateSymbolReadCommand(IEnumerable<IMapping> source) => new SumSymbolRead(session.Connection!, source
         .GetTargetSymbols(AdsCommandId.Read)
-        .ToList(), SumAccessMode.IndexGroupIndexOffset);
+        .ToList(), SumAccessMode.IndexGroupIndexOffset, SumFallbackMode.All);
     public SumSymbolWrite CreateSymbolWriteCommand(IEnumerable<IMapping> source) => new SumSymbolWrite(session.Connection!, source
         .GetTargetSymbols(AdsCommandId.Write)
         .ToList());
