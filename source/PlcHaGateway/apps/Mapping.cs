@@ -183,7 +183,7 @@ public abstract class Mapping<T> : IMapping
     }
     protected IDataType GetDataType(string typeName)
     {
-        var dataType = dataTypes.FirstOrDefault(dt => dt.Name.Equals(typeName));
+        var dataType = dataTypes.FirstOrDefault(dt => dt.Name.Split('.').Last().Equals(typeName));
         if (dataType is null)
             throw new NullReferenceException($"Declared datatype '{typeName}' not found in TwinCAT type system.");
         else
