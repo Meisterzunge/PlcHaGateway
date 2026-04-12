@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Aggregate" Id="{09d60424-8be1-4a8c-a509-56085130d367}" SpecialFunc="None">
+    <Declaration><![CDATA[// Some aggregate
+FUNCTION_BLOCK FB_Aggregate EXTENDS FB_Mfr_View
+VAR
+	{region 'Model'}
+		{attribute 'PlcHa.Mapping'}
+		{attribute 'PlcHa.Name' := 'Command value'}
+		CmdVal : FB_Mfr_BVal;
+		{attribute 'PlcHa.Mapping'}
+		{attribute 'PlcHa.Name' := 'Command'}
+		Cmd : FB_Mfr_BO;
+	{endregion}
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
