@@ -46,6 +46,10 @@ VAR
 	{attribute 'PlcHa.Name' := 'Some multistate display value'}
 	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
 	mvDsp : FB_Mfr_MVal;
+	
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Pump'}
+	pu : FB_Aggregate;
 END_VAR
 VAR
 	// Bind to specific entities:
@@ -80,6 +84,8 @@ bvDsp(bValue := TRUE);
 
 mvSp();
 mvDsp(nValue:=E_OffOnTest.Auto);
+
+pu();
 
 avDspNative();
 avSpNative();

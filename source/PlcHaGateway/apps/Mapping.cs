@@ -50,7 +50,7 @@ public class VirtualDevice : IEnumerable<ISymbol>
         this.Symbol = symbol;
         this.info = info;
         this.Identifier = symbol.GetEntityPath();
-        this.Name = symbol.TryGetMappingParameterAttribute(PlcMappingParameter.Name)?.Value ?? symbol.InstanceName;
+        this.Name = symbol.GetEntityName() ?? symbol.InstanceName;
         this.Model = symbol.TryGetMappingParameterAttribute(PlcMappingParameter.Model)?.Value ?? info?.ProjectName;
         this.Manufacturer = symbol.TryGetMappingParameterAttribute(PlcMappingParameter.Manufacturer)?.Value;
 
@@ -144,7 +144,7 @@ public abstract class Mapping<T> : IMapping
         this.Symbol = symbol;
         this.EntityId = entityInfo.Path;
         this.Backend = entityInfo.Backend;
-        this.Name = TryGetMappingParameter(PlcMappingParameter.Name)?.Value ?? Symbol.InstanceName;
+        this.Name = symbol.GetEntityName(owner) ?? Symbol.InstanceName;
         this.DeviceClass = TryGetMappingParameter(PlcMappingParameter.DeviceClass)?.Value;
 
         LogEvent.Gw.LogTrace($"Created mapping for '{symbol.InstancePath}'.");
@@ -485,17 +485,28 @@ internal static partial class Ext
             .GetMappingParameterAttributes()
             .FirstOrDefault(a => a.Name.Equals(attribName, StringComparison.InvariantCultureIgnoreCase)));
     }
+    public static string? TryGetMapping(this ISymbol source)
+    {
+        var attrib = source.TryGetMappingParameterAttribute();
+        if (attrib is null)
+            return (null);
+        else if (string.IsNullOrEmpty(attrib.Value))
+            return (source.InstanceName);
+        else
+            return (attrib.Value);
+    }
 
     /// <summary>
     /// Returns an enumeration of all parents and the instance self, known as <i>XPath</i>.
     /// </summary>
-    public static IEnumerable<ISymbol> GetXPath(this ISymbol source) => getXPath(source).Reverse();
-    private static IEnumerable<ISymbol> getXPath(this ISymbol source)
+    /// <param name="root">Optional root symbol to stop at, otherwise returns full path to top.</param>
+    public static IEnumerable<ISymbol> GetXPath(this ISymbol source, ISymbol? root = null) => getXPath(source, root).Reverse();
+    private static IEnumerable<ISymbol> getXPath(this ISymbol source, ISymbol? root = null)
     {
         yield return (source);
 
         var parent = source.Parent;
-        while (parent is not null)
+        while ((parent is not null) && (parent != root))
         {
             yield return (parent);
             parent = parent.Parent;
@@ -511,20 +522,15 @@ internal static partial class Ext
             // Mappings specifies a new entity, wich will be configured via MQTT: 
             return (GetEntityPath(source), IntegrationType.Mqtt);
     }
-    public static string GetEntityPath(this ISymbol source) => string.Join('_', source
+    public static string GetEntityPath(this ISymbol source) => string.Join("_", source
         .GetXPath()
-        .Select(s => s.GetInstanceEntityName()?.ToLower())
+        .Select(s => s.TryGetMapping()?.ToLower())
         .Where(s => !string.IsNullOrEmpty(s)));
-    public static string? GetInstanceEntityName(this ISymbol source)
-    {
-        var attrib = source.TryGetMappingParameterAttribute();
-        if (attrib is null)
-            return (null);
-        else if (string.IsNullOrEmpty(attrib.Value))
-            return (source.InstanceName);
-        else
-            return (attrib.Value);
-    }
+    public static string? GetEntityName(this ISymbol source, VirtualDevice? owner = null) => string.Join(" - ", source
+        .GetXPath(owner?.Symbol)
+        .Select(s => s.TryGetMappingParameterAttribute(PlcMappingParameter.Name)?.Value)
+        .Where(s => !string.IsNullOrEmpty(s)));
+
     public static bool IsFunctionBlock(this ISymbol source, FunctionBlock expectedType) => (GetFunctionBlockType(source, out _) == expectedType);
     public static FunctionBlock GetFunctionBlockType(this string source)
     {

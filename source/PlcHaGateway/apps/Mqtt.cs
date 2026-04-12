@@ -144,6 +144,8 @@ internal static partial class Ext
         await entityManager.CreateAsync(entityId, options, additionalConfig).ConfigureAwait(false);
 
         // Subscribe to MQTT entity:
+        // > Don't subscribe to 'value type' function blocks:
+        //   Unfortunately HASS don't send state-change updates for indicator entities like 'binary_sensor' and 'sensor' 😥
         if (source.FunctionBlockType.IsOperationalType())
         {
             Action<string> OnSubscribe = async (state) =>
