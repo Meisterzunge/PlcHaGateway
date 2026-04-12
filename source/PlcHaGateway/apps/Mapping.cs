@@ -278,12 +278,7 @@ public class MultistateMapping : Mapping<uint>
         }
 
         var enumType = (IEnumType)GetDataType(PlcMappingParameter.Enum);
-        this.Options = enumType.EnumValues
-            .Where(v => char.IsUpper(v.Name.FirstOrDefault()))
-            .ToDictionary(
-                v => Convert.ToUInt32(v.Primitive),
-                v => v.Name
-            );
+        this.Options = enumType.GetFields();
 
         // [Legacy] Match PLC enum against HASS enum entity:
         /*
