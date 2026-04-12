@@ -359,4 +359,21 @@ internal static partial class Ext
     }
     public static IMapping? TryGetAssociatedMapping(this ISymbol source) => (associatedPlcMappings.TryGetValue(source, out var mapping) ? mapping : null);
     private static readonly Dictionary<ISymbol, IMapping> associatedPlcMappings = new();
+
+    public static Dictionary<uint, string> GetFields(this IEnumType source) => source.EnumValues
+        .Select(v => (Field: v, Name: GetFieldNameIfValid(v)))
+        .Where(f => f.Name is not null)
+        .ToDictionary(v => Convert.ToUInt32(v.Field.Value), v => v.Name!);
+    private static string? GetFieldNameIfValid(this IEnumValue source)
+    {
+        // Remove prefixes:
+        var fieldName = source.Name;
+        if (fieldName.FirstOrDefault() == 'e')
+            fieldName = fieldName.Substring(1);
+
+        if (char.IsUpper(fieldName.FirstOrDefault()))
+            return (fieldName);
+        else
+            return (null);
+    }
 }
