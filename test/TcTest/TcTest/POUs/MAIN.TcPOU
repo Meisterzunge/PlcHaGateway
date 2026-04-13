@@ -9,10 +9,15 @@ VAR
 	{attribute 'PlcHa.Version' := '0.2.1.0'}
 	fbDevice10 : FB_TestDevice;
 	
+	// TODO: Native mappings of unparented entities not supported yet!
+	//       
+	(*
 	{attribute 'PlcHa.Mapping' := 'sensor.test_tfl'}
 	{attribute 'PlcHa.Name' := 'Some flow temp'}
 	{attribute 'PlcHa.Unit' := '°C'}
-	test_ai : FB_Mfr_AI;
+	test_av : FB_Mfr_AVal;
+	*)
+	
 	{attribute 'PlcHa.Mapping' := 'input_number.test_number'}
 	{attribute 'PlcHa.Name' := 'Some operational value'}
 	{attribute 'PlcHa.Unit' := '%'}
@@ -34,6 +39,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[fbDevice10();
 
+//test_av();
 test_number();
 test_toggle();
 test_sel1();]]></ST>

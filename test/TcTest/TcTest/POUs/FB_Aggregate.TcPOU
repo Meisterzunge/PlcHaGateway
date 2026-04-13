@@ -15,7 +15,10 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[SUPER^();
+
+CmdVal();
+Cmd();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>
