@@ -111,6 +111,7 @@ public interface IMapping
     VirtualDevice? Owner { get; }
     ISymbol Symbol { get; }
     string EntityId { get; }
+    string? AttributeKey { get; }
 
     Modification? LastModified { get; }
     #endregion
@@ -144,6 +145,7 @@ public abstract class Mapping<T> : IMapping
         this.Symbol = symbol;
         this.EntityId = entityInfo.Path;
         this.Backend = entityInfo.Backend;
+        this.AttributeKey = entityInfo.AttributeKey;
         this.Name = symbol.GetEntityName(owner) ?? Symbol.InstanceName;
         this.DeviceClass = TryGetMappingParameter(PlcMappingParameter.DeviceClass)?.Value;
 
@@ -158,6 +160,7 @@ public abstract class Mapping<T> : IMapping
     public VirtualDevice? Owner { get; }
     public ISymbol Symbol { get; }
     public string EntityId { get; }
+    public string? AttributeKey { get; }
 
     public Modification? LastModified { get; private set; }
     #endregion
@@ -507,15 +510,28 @@ internal static partial class Ext
             parent = parent.Parent;
         }
     }
-    public static (string Path, IntegrationType Backend) GetEntityInfo(this ISymbol source)
+    public static (string Path, IntegrationType Backend, string? AttributeKey) GetEntityInfo(this ISymbol source)
     {
         var mapping = source.TryGetMappingParameterAttribute()?.Value;
         if (mapping?.Contains('.') == true)
-            // Mappings binds to some specific entity, configured in home assistant:
-            return (mapping, IntegrationType.Native);
+        {
+            // Mapping binds to a specific entity (native).
+            
+            var colonIdx = mapping.IndexOf(':');
+            if (colonIdx == -1)
+                // Bind to entity state:
+                return (mapping, IntegrationType.Native, null);
+            else
+            {
+                // Bind to specific entity attribute:
+                var entityId = mapping.Substring(0, colonIdx);
+                var attributeKey = mapping.Substring(colonIdx + 1);
+                return (entityId, IntegrationType.Native, string.IsNullOrWhiteSpace(attributeKey) ? null : attributeKey);
+            }
+        }
         else
-            // Mappings specifies a new entity, wich will be configured via MQTT: 
-            return (GetEntityPath(source), IntegrationType.Mqtt);
+            // Mapping specifies a new entity, which will be configured via MQTT:
+            return (GetEntityPath(source), IntegrationType.Mqtt, null);
     }
     public static string GetEntityPath(this ISymbol source) => string.Join("_", source
         .GetXPath()

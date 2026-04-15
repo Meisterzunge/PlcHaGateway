@@ -69,6 +69,10 @@ VAR
 	{attribute 'PlcHa.Mapping' := 'input_select.test_sel1'}
 	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
 	mvSpNative : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
+	
+	// Bind to specific entity attributes:
+	{attribute 'PlcHa.Mapping' := 'sensor.shelly_uv01_cumulated_active_power_average:trending_towards'}
+	avDspNative2 : FB_Mfr_AVal;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -92,7 +96,10 @@ avSpNative();
 bvDspNative();
 bvSpNative();
 mvDspNative();
-mvSpNative();]]></ST>
+mvSpNative();
+
+avDspNative2();
+]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

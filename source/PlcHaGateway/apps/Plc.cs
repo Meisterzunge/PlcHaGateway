@@ -248,7 +248,6 @@ internal class Plc : IDisposable, IProjectInfo
     private AdsSession session;
 }
 
-
 internal static partial class Ext
 {
     #region Constants

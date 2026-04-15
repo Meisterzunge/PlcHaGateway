@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NetDaemon.HassModel.Entities;
 using TwinCAT.TypeSystem;
@@ -47,7 +48,7 @@ internal static partial class Ext
             }
             catch (Exception ex)
             {
-                LogEvent.Hass.LogError(ex, "Failed to apply received value '{0}' of MQTT entity {1}.", state.New?.State, state.Entity.EntityId);
+                LogEvent.Hass.LogError(ex, "Failed to apply received value of native entity {0}.", state.Entity.EntityId);
             }
         };
         entity
@@ -105,25 +106,56 @@ internal static partial class Ext
     #region Helper
     private static void SetNativeValue(this IMapping source, EntityState? state)
     {
-        // Convert value:
-        object? val = state?.State;
+        // Resolve raw value: either entity state or a named attribute.
+        object? raw;
+        if (source.AttributeKey is null)
+            raw = state?.State;
+        else
+        {
+            var attrs = state?.Attributes;
+            if (attrs is null || !attrs.ContainsKey(source.AttributeKey))
+            {
+                LogEvent.Hass.LogWarning("Attribute '{0}' not present on entity {1}. Skipping update.", source.AttributeKey, source.EntityId);
+                return;
+            }
+            var attrVal = attrs[source.AttributeKey];
+            // Normalize JsonElement to its underlying value so existing ConvertValue pipelines work correctly.
+            raw = attrVal is JsonElement je ? NormalizeElement(je) : attrVal;
+        }
+
+        // Convert value using existing per-type logic:
+        object? val = raw;
         switch (source)
         {
-            case null: break;
+            case null: return;
 
-            case AnalogMapping aMapping: break;
-            case BooleanMapping bMapping:
-                val = state?.State!.Equals("on", StringComparison.InvariantCultureIgnoreCase);
+            case AnalogMapping:
                 break;
-            case MultistateMapping mMapping: break;
+            case BooleanMapping:
+                if (raw is string s)
+                    val = state?.State!.Equals("on", StringComparison.InvariantCultureIgnoreCase);
+                else
+                    val = Convert.ToBoolean(raw);
+                break;
+            case MultistateMapping:
+                break;
 
             default: throw new NotSupportedException($"Failed to obtain value from not supported mapping of type '{source.GetType().Name}'!");
         }
 
-        source!.SetValue(val, AutomationContext.Hass);
+        if (val is not null)
+            source.SetValue(val, AutomationContext.Hass);
     }
     #endregion
     #region Helper.Exceptions
+    private static object? NormalizeElement(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.String => element.GetString(),
+        JsonValueKind.Number => element.TryGetSingle(out var f) ? f : (object?)element.GetDouble(),
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        _ => element.ToString()
+    };
     static Exception WriteMappingNotSupported(EntityType type) => throw new NotSupportedException($"Failed to write mapping of not supported entity type '{type}'!");
     #endregion
 }

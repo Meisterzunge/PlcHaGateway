@@ -51,7 +51,7 @@ TwinCAT PLC  <-ADS->  PlcHaGateway (C# NetDaemon)  <-MQTT->  Home Assistant
 
 Use these PLC attributes on MFFB symbols:
 
-- `PlcHa.Mapping` → target path (`domain.entity` for native, segment path for relative/MQTT).
+- `PlcHa.Mapping` → target path (`domain.entity` for native state, `domain.entity:attributeName` for native attribute, segment path for relative/MQTT).
 - `PlcHa.Name` → friendly name.
 - `PlcHa.Model` / `PlcHa.Manufacturer` / `PlcHa.Version` → virtual-device metadata.
 - `PlcHa.Enum` → enum datatype for multistate mappings.
@@ -87,7 +87,7 @@ Entities are created via `IMqttEntityManager`. Configuration objects (from `NetD
 
 ### Native vs Relative Binding
 
-- **Native binding**: `PlcHa.Mapping` contains a fully qualified entity path including domain (for example `sun.sun`). The gateway treats this as `IntegrationType.Native` and binds through NetDaemon's HA context (`IHaContext`) to an existing Home Assistant entity.
+- **Native binding**: `PlcHa.Mapping` contains a fully qualified entity path including domain (for example `sun.sun`). The gateway treats this as `IntegrationType.Native` and binds through NetDaemon's HA context (`IHaContext`) to an existing Home Assistant entity. If the value contains a colon suffix (`domain.entity:attributeName`), the specified attribute is read instead of entity state; the entity ID stored on the mapping is the part before the colon.
 - **Relative binding**: `PlcHa.Mapping` contains only an entity path segment. The gateway treats this as `IntegrationType.Mqtt`, builds the final entity path by concatenating nested MFFB mapping segments, infers the domain from the MFFB type, and creates/synchronizes the entity via MQTT discovery/state topics.
 - **Constraint**: Physical MFFBs (for example `FB_Mfr_AO`, `FB_Mfr_BI`) must not use native binding.
 
@@ -126,6 +126,10 @@ This prevents internal/sentinel PLC values from leaking into HA.
 - DO NOT add NuGet packages without checking `PlcHaGateway.csproj` for existing alternatives.
 - When HA entity config or dashboard changes are needed, apply the `home-assistant-best-practices` skill.
 - When TwinCAT PLC-side changes are needed (ST code, MFFB attributes), delegate to "TwinCAT 3 Coder".
+- For TwinCAT PLC code, declare MFFB instance names using compact consonant-first abbreviations:
+	remove vowels, then keep the first 2-4 characters per word or segment. Prefer readable/sound-good abbreviations when multiple options exist.
+	Examples: `Valve` -> `Vlv`, `VlvLoad` -> `VlvLd`, `Pump` -> `Pu`, `Command` -> `Cmd`, `Duration` -> `Drtn`, `Enabled` -> `Enbl`, `RemainingTime` -> `RmnTm`, `TotalTime` -> `TtlTm`.
+  Exceptions: `Status` -> `Sta`, `Maximum` -> `Max`
 - Prefer targeted changes — do not refactor unrelated code.
 
 ## Workflow
