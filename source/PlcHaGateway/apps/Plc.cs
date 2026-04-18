@@ -92,7 +92,7 @@ public class FunctionBlockAttribute : Attribute
     public string TypeName { get; }
     #endregion
 }
-public enum FunctionBlock
+public enum SymbolType
 {
     [FunctionBlock("AI", "fVal")]
     AnalogInput,
@@ -115,7 +115,11 @@ public enum FunctionBlock
     [FunctionBlock("MValOp", "nVal", "nVal")]
     MultistateOperationalValue,
     [FunctionBlock("View")]
-    View
+    View,
+
+    PrimitiveAnalog,
+    PrimitiveBinary,
+    PrimitiveMultistate
 }
 
 public class Tc3_MiniFrame
@@ -124,7 +128,7 @@ public class Tc3_MiniFrame
     public const string LibraryName = "Tc3_MiniFrame";
     public const string FunctionBlockPrefix = "FB_Mfr";
 
-    public static IReadOnlyDictionary<FunctionBlock, FunctionBlockAttribute> FunctionBlocks = UtilEnum.GetCustomAttributes<FunctionBlock, FunctionBlockAttribute>();
+    public static IReadOnlyDictionary<SymbolType, FunctionBlockAttribute> SymbolTypes = UtilEnum.GetCustomAttributes<SymbolType, FunctionBlockAttribute>();
     #endregion
 }
 
@@ -160,11 +164,11 @@ internal class Plc : IDisposable, IProjectInfo
     /// <summary>
     /// Mapped root symbols, of type <c>view</c>.
     /// </summary>
-    public ISymbol[] MappedDevices { get; private set; }
+    public ISymbol[] MappedDevices { get; private set; } = [];
     /// <summary>
     /// Mapped root symbols, <b>not</b> of type <c>view</c>.
     /// </summary>
-    public ISymbol[] MappedSymbols { get; private set; }
+    public ISymbol[] MappedSymbols { get; private set; } = [];
 
     [SymbolPath("TwinCAT_SystemInfoVarList._AppInfo", "ProjectName")]
     public string? ProjectName { get; private set; }
@@ -189,11 +193,16 @@ internal class Plc : IDisposable, IProjectInfo
         await ReadStaticSymbolsAsync(res, cancel).ConfigureAwait(false);
 
         // Load mapped symbols:
-        var rootSymbols = res.Symbols
+        var allSymbols = res.Symbols?.ToArray() ?? [];
+        var rootSymbols = allSymbols
             .WhereMapped()
             .ToList();
         this.MappedDevices = rootSymbols
-            .PopWhere(s => s.IsFunctionBlock(FunctionBlock.View))
+            .PopWhere(s => s.IsViewSymbolTypeOrSubclass())
+            .Concat(allSymbols
+                .Where(s => !s.IsMapped())
+                .Where(s => s.IsViewSymbolTypeOrSubclass())
+                .Where(s => s.HasSupportedMappedMembers()))
             .ToArray();
         this.MappedSymbols = rootSymbols.ToArray();
     }
@@ -251,11 +260,12 @@ internal class Plc : IDisposable, IProjectInfo
 internal static partial class Ext
 {
     #region Constants
-    private static readonly FunctionBlock[] PhysicalTypes = { FunctionBlock.AnalogInput, FunctionBlock.AnalogOutput, FunctionBlock.BinaryInput, FunctionBlock.BinaryOutput };
-    private static readonly FunctionBlock[] InputTypes = { FunctionBlock.AnalogInput, FunctionBlock.BinaryInput };
-    private static readonly FunctionBlock[] OutputTypes = { FunctionBlock.AnalogOutput, FunctionBlock.BinaryOutput };
-    private static readonly FunctionBlock[] ValueTypes = { FunctionBlock.AnalogValue, FunctionBlock.BinaryValue, FunctionBlock.MultistateValue };
-    private static readonly FunctionBlock[] OperationalTypes = { FunctionBlock.AnalogOperationalValue, FunctionBlock.BinaryOperationalValue, FunctionBlock.MultistateOperationalValue };
+    private static readonly SymbolType[] MiniFramePhysicalTypes = { SymbolType.AnalogInput, SymbolType.AnalogOutput, SymbolType.BinaryInput, SymbolType.BinaryOutput };
+    private static readonly SymbolType[] MiniFrameInputTypes = { SymbolType.AnalogInput, SymbolType.BinaryInput };
+    private static readonly SymbolType[] MiniFrameOutputTypes = { SymbolType.AnalogOutput, SymbolType.BinaryOutput };
+    private static readonly SymbolType[] MiniFrameValueTypes = { SymbolType.AnalogValue, SymbolType.BinaryValue, SymbolType.MultistateValue };
+    private static readonly SymbolType[] PrimitiveValueTypes = { SymbolType.PrimitiveAnalog, SymbolType.PrimitiveBinary, SymbolType.PrimitiveMultistate };
+    private static readonly SymbolType[] MiniFrameOperationalTypes = { SymbolType.AnalogOperationalValue, SymbolType.BinaryOperationalValue, SymbolType.MultistateOperationalValue };
     #endregion
 
 
@@ -277,47 +287,62 @@ internal static partial class Ext
             yield return (sub);
     }
 
-    public static bool IsPhysicalType(this FunctionBlock source) => PhysicalTypes.Contains(source);
-    public static bool IsInputType(this FunctionBlock source) => InputTypes.Contains(source);
-    public static bool IsOutputType(this FunctionBlock source) => OutputTypes.Contains(source);
-    public static bool IsValueType(this FunctionBlock source) => ValueTypes.Contains(source);
-    public static bool IsOperationalType(this FunctionBlock source) => OperationalTypes.Contains(source);
-    public static string GetTypeName(this FunctionBlock source) => Tc3_MiniFrame.FunctionBlocks[source].TypeName;
-    public static string ToPlcType(this FunctionBlock source) => Tc3_MiniFrame.FunctionBlocks[source].TypeName.ToPlcType();
+    public static bool IsPhysicalType(this SymbolType source) => MiniFramePhysicalTypes.Contains(source);
+    public static bool IsInputType(this SymbolType source) => MiniFrameInputTypes.Contains(source);
+    public static bool IsOutputType(this SymbolType source) => MiniFrameOutputTypes.Contains(source);
+    public static bool IsMiniFrameValueType(this SymbolType source) => MiniFrameValueTypes.Contains(source);
+    public static bool IsPrimitiveValueType(this SymbolType source) => PrimitiveValueTypes.Contains(source);
+    public static bool IsOperationalType(this SymbolType source) => MiniFrameOperationalTypes.Contains(source);
+    public static bool IsMiniFrameSymbolType(this SymbolType source) => Tc3_MiniFrame.SymbolTypes.ContainsKey(source);
+    public static string GetTypeName(this SymbolType source)
+    {
+        if (Tc3_MiniFrame.SymbolTypes.TryGetValue(source, out var info))
+            return (info.TypeName);
+
+        throw new NotSupportedException($"Symbol type '{source}' does not define a MiniFrame function block type name.");
+    }
+    public static string ToPlcType(this SymbolType source)
+    {
+        if (Tc3_MiniFrame.SymbolTypes.TryGetValue(source, out var info))
+            return (info.TypeName.ToPlcType());
+
+        throw new NotSupportedException($"Symbol type '{source}' does not define a MiniFrame function block type.");
+    }
     public static string ToPlcType(this string source) => $"{Tc3_MiniFrame.LibraryName}.{source}";
 
-    public static bool IsMiniFrameType(this ISymbol source) => IsMiniFrameType(source.DataType);
-    public static bool IsMiniFrameType(this IDataType source) => source.Name.StartsWith(Tc3_MiniFrame.LibraryName);
+    public static bool IsMiniFrameType(this ISymbol source) => (source.DataType is not null) && IsMiniFrameType(source.DataType);
+    public static bool IsMiniFrameType(this IDataType? source) => source?.Name.StartsWith(Tc3_MiniFrame.LibraryName) == true;
 
     public static MappingParameterAttribute GetAttribute(this PlcMappingParameter source) => source.GetCustomAttribute<MappingParameterAttribute, PlcMappingParameter>();
 
     internal static IEnumerable<ISymbol> GetTargetSymbols(this IEnumerable<IMapping> source, AdsCommandId command) => source.SelectMany(m => GetTargetSymbols(m, command));
     internal static IEnumerable<ISymbol> GetTargetSymbols(this IMapping source, AdsCommandId command)
     {
-        // TODO: Method returns a single symol so far. But it is intent to return more than one symbol some day..
-
-        var fb = source.Symbol.GetFunctionBlockType(out _);
-
-        string? targetSymbol;
-        switch (command)
+        if (source.Symbol.TryGetSymbolType(out var fb, out _))
         {
-            case AdsCommandId.Read: targetSymbol = Tc3_MiniFrame.FunctionBlocks[fb].ReadSymbol; break;
-            case AdsCommandId.Write: targetSymbol = Tc3_MiniFrame.FunctionBlocks[fb].WriteSymbol; break;
+            string? targetSymbol;
+            switch (command)
+            {
+                case AdsCommandId.Read: targetSymbol = Tc3_MiniFrame.SymbolTypes[fb].ReadSymbol; break;
+                case AdsCommandId.Write: targetSymbol = Tc3_MiniFrame.SymbolTypes[fb].WriteSymbol; break;
 
-            default: throw new NotSupportedException($"Failed to determine symbols for not supported commands '{command}'!");
+                default: throw new NotSupportedException($"Failed to determine symbols for not supported commands '{command}'!");
+            }
+            if (targetSymbol is null)
+                yield break;
+            else
+                // Yield and associate target symbol:
+                yield return (source.Symbol.SubSymbols[targetSymbol].Associate(source));
         }
-        if (targetSymbol is null)
-            yield break;
         else
-            // Yield and associate target symbol:
-            yield return (source.Symbol.SubSymbols[targetSymbol].Associate(source));
+            yield return (source.Symbol.Associate(source));
     }
 
     public static IEnumerable<IMapping> OfCyclicallyReadable(this IEnumerable<IMapping> source) => source.Where(IsCyclicallyReadable);
     public static bool IsCyclicallyReadable(this IMapping source)
     {
         if (source.Backend == IntegrationType.Native)
-            return (source.FunctionBlockType.IsOperationalType());
+            return (source.SymbolType.IsOperationalType());
         else
             return (true);
     }

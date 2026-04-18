@@ -174,7 +174,7 @@ internal static partial class Ext
     public static Task<IMapping[]?> DetermineUpdateFactor(this Task<IMapping[]?> source, ref double factor)
     {
         // Improve user experience by boosting update cycle whenever interaction is detected:
-        if (source.Result.Any(m => m.FunctionBlockType.IsOperationalType()))
+        if (source.Result.Any(m => m.SymbolType.IsOperationalType()))
             stopBoost = (DateTime.Now + BoostDuration);
 
         if (stopBoost is null)

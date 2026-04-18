@@ -26,8 +26,8 @@ internal static partial class Ext
         // Validate:
         if (source.Backend != IntegrationType.Native)
             throw new InvalidOperationException($"Failed to create native entity for mapping of backend '{source.Backend}'!");
-        if (source.FunctionBlockType.IsPhysicalType())
-            throw new InvalidOperationException($"Failed to create native entity for mapping of physical type '{source.FunctionBlockType}'!");
+        if (source.SymbolType.IsPhysicalType())
+            throw new InvalidOperationException($"Failed to create native entity for mapping of physical type '{source.SymbolType}'!");
 
         var entity = ha
             .GetAllEntities()
@@ -70,7 +70,7 @@ internal static partial class Ext
     /// </summary>
     public static Task WriteMappingAsync(this IMapping source)
     {
-        if (!source.FunctionBlockType.IsOperationalType())
+        if (!source.SymbolType.IsOperationalType())
             throw new InvalidOperationException($"Failed to write mapping of non-operational native entity '{source}'!");
 
         var entity = source.GetAssociatedEntity();

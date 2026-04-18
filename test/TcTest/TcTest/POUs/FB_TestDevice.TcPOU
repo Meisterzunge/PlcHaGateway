@@ -50,10 +50,13 @@ VAR
 	{attribute 'PlcHa.Mapping'}
 	{attribute 'PlcHa.Name' := 'Pump'}
 	pu : FB_Aggregate;
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Weather'}
+	wth : FB_Weather;
 END_VAR
 VAR
 	// Bind to specific entities:
-	{attribute 'PlcHa.Mapping' := 'sensor.shelly_uv01_total_active_power'}
+	{attribute 'PlcHa.Mapping' := 'sensor.shelly_total_active_power'}
 	avDspNative : FB_Mfr_AVal;
 	{attribute 'PlcHa.Mapping' := 'input_number.test_number'}
 	avSpNative : FB_Mfr_AValOp := (fVal:=21.0);
@@ -71,7 +74,7 @@ VAR
 	mvSpNative : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
 	
 	// Bind to specific entity attributes:
-	{attribute 'PlcHa.Mapping' := 'sensor.shelly_uv01_cumulated_active_power_average:trending_towards'}
+	{attribute 'PlcHa.Mapping' := 'sensor.shelly_cumulated_active_power_average:trending_towards'}
 	avDspNative2 : FB_Mfr_AVal;
 END_VAR
 ]]></Declaration>
@@ -90,6 +93,7 @@ mvSp();
 mvDsp(nValue:=E_OffOnTest.Auto);
 
 pu();
+wth();
 
 avDspNative();
 avSpNative();
