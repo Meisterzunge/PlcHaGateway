@@ -4,14 +4,16 @@ NetDaemon 5 (.NET 9) daemon bridging a **TwinCAT PLC** (via ADS) with **Home Ass
 
 ## Architecture
 
-```
-TwinCAT PLC  <ADS>  PlcHaGateway  <MQTT>  Home Assistant
-                                       <native> Home Assistant
+```mermaid
+flowchart LR
+  plc[TwinCAT PLC] -- ADS --> gw[PlcHaGateway]
+  gw -- MQTT --> haMqtt[Home Assistant\n(MQTT entities)]
+  gw -- native --> haNative[Home Assistant\n(entity state + attributes)]
 ```
 
 ## PLC Mapping Attributes
 
-Apply these `{attribute}` pragmas to MFFB symbol declarations in TwinCAT:
+Apply these `{attribute}` pragmas to mapped TwinCAT symbol declarations. Supported targets are MiniFrame MFFBs and primitive child variables declared inside a view hierarchy:
 
 | Attribute | Required | Example value | Description |
 |---|---|---|---|
@@ -63,6 +65,33 @@ No `.` in mapping value  creates and manages the entity via MQTT discovery.
 {attribute 'PlcHa.Mapping' := 'Test10'}
 {attribute 'PlcHa.Name' := 'Test device No°10'}
 fbDevice10 : FB_TestDevice;
+```
+
+### Custom view subclasses
+
+Root discovery also supports custom function blocks that derive from `Tc3_MiniFrame.FB_Mfr_View`, including multi-level inheritance chains.
+
+- The root view instance itself may omit `PlcHa.Mapping`.
+- Discovery only applies to view roots. Arbitrary wrapper or container types are not discovered.
+- At least one descendant member must carry `PlcHa.Mapping`.
+- Inheritance support is limited to `FB_Mfr_View` roots.
+- Descendant mapped members may be supported MiniFrame MFFBs or primitive PLC variables such as `BOOL`, numeric primitives, or enums.
+- Primitive child mappings are exposed as read-only value-style entities inferred from datatype: `BOOL` -> `binary_sensor`, numeric primitives -> `sensor`, enums -> enum-style `sensor`.
+
+Example:
+
+```st
+fbRoom : FB_CustomRoomView;
+
+FUNCTION_BLOCK FB_CustomRoomView EXTENDS FB_Mfr_View
+VAR
+  {attribute 'PlcHa.Mapping' := 'window_open'}
+  {attribute 'PlcHa.Name' := 'Window open'}
+  bWindowOpen : BOOL;
+
+  {attribute 'PlcHa.Mapping' := 'temperature'}
+  rTemperature : REAL;
+END_VAR
 ```
 
 ## Configuration (`appsettings.json`)

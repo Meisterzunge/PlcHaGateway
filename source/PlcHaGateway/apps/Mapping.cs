@@ -22,17 +22,17 @@ using static Tc3_MiniFrame;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class MappingAttribute : Attribute
 {
-    public MappingAttribute(EntityType entityType, params FunctionBlock[] supportedPlcTypes)
+    public MappingAttribute(EntityType entityType, params SymbolType[] supportedSymbolTypes)
     {
         this.EntityType = entityType;
         this.EntityTypeName = entityType.GetAttribute().TypeName;
-        this.SupportedPlcTypes = supportedPlcTypes;
+        this.SupportedSymbolTypes = supportedSymbolTypes;
     }
 
 
     public EntityType EntityType { get; }
     public string EntityTypeName { get; }
-    public FunctionBlock[] SupportedPlcTypes { get; }
+    public SymbolType[] SupportedSymbolTypes { get; }
 }
 
 public interface IProjectInfo
@@ -107,7 +107,7 @@ public interface IMapping
     #region Properties.Management
     MappingAttribute Info { get; }
     IntegrationType Backend { get; }
-    FunctionBlock FunctionBlockType { get; }
+    SymbolType SymbolType { get; }
     VirtualDevice? Owner { get; }
     ISymbol Symbol { get; }
     string EntityId { get; }
@@ -131,7 +131,7 @@ public interface IMapping
 public abstract class Mapping<T> : IMapping
     where T : struct
 {
-    internal Mapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null)
+    internal Mapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null, SymbolType? symbolType = null)
     {
         var sym = (Symbol)symbol;
         var session = (AdsSession)sym.Connection!.Session!;
@@ -140,7 +140,7 @@ public abstract class Mapping<T> : IMapping
         this.dataTypes = session.SymbolServer.DataTypes;
 
         this.Info = info;
-        this.FunctionBlockType = symbol.GetFunctionBlockType(out _);
+        this.SymbolType = symbolType ?? symbol.GetSymbolType(out _);
         this.Owner = owner;
         this.Symbol = symbol;
         this.EntityId = entityInfo.Path;
@@ -156,7 +156,7 @@ public abstract class Mapping<T> : IMapping
     #region Properties.Management
     public MappingAttribute Info { get; }
     public IntegrationType Backend { get; private set; }
-    public FunctionBlock FunctionBlockType { get; }
+    public SymbolType SymbolType { get; }
     public VirtualDevice? Owner { get; }
     public ISymbol Symbol { get; }
     public string EntityId { get; }
@@ -253,23 +253,26 @@ public abstract class Mapping<T> : IMapping
 
     private IDataTypeCollection<IDataType> dataTypes;
 }
-[Mapping(EntityType.Sensor, FunctionBlock.AnalogInput, FunctionBlock.AnalogOutput, FunctionBlock.AnalogValue)]
-[Mapping(EntityType.Number, FunctionBlock.AnalogOperationalValue)]
+[Mapping(EntityType.Sensor, SymbolType.AnalogInput, SymbolType.AnalogOutput, SymbolType.AnalogValue)]
+[Mapping(EntityType.Number, SymbolType.AnalogOperationalValue)]
 public class AnalogMapping : Mapping<float>
 {
     public AnalogMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner) { }
+    internal AnalogMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner, SymbolType symbolType) : base(info, symbol, owner, symbolType) { }
 }
-[Mapping(EntityType.BinarySensor, FunctionBlock.BinaryInput, FunctionBlock.BinaryOutput, FunctionBlock.BinaryValue)]
-[Mapping(EntityType.Switch, FunctionBlock.BinaryOperationalValue)]
+[Mapping(EntityType.BinarySensor, SymbolType.BinaryInput, SymbolType.BinaryOutput, SymbolType.BinaryValue)]
+[Mapping(EntityType.Switch, SymbolType.BinaryOperationalValue)]
 public class BooleanMapping : Mapping<bool>
 {
     public BooleanMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner) { }
+    internal BooleanMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner, SymbolType symbolType) : base(info, symbol, owner, symbolType) { }
 }
-[Mapping(EntityType.Sensor, FunctionBlock.MultistateValue)]
-[Mapping(EntityType.Select, FunctionBlock.MultistateOperationalValue)]
+[Mapping(EntityType.Sensor, SymbolType.MultistateValue)]
+[Mapping(EntityType.Select, SymbolType.MultistateOperationalValue)]
 public class MultistateMapping : Mapping<uint>
 {
-    public MultistateMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner)
+    public MultistateMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : this(info, symbol, owner, null) { }
+    internal MultistateMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner, SymbolType? symbolType) : base(info, symbol, owner, symbolType)
     {
         if (info.EntityType == EntityType.Sensor)
         {
@@ -280,7 +283,7 @@ public class MultistateMapping : Mapping<uint>
                 throw new ArgumentException($"Multistate mappings of type '{info.EntityType.GetDescription()}' must not declare a device class!");
         }
 
-        var enumType = (IEnumType)GetDataType(PlcMappingParameter.Enum);
+        var enumType = ResolveEnumType();
         this.Options = enumType.GetFields();
 
         // [Legacy] Match PLC enum against HASS enum entity:
@@ -333,10 +336,22 @@ public class MultistateMapping : Mapping<uint>
 
 
     #region Helper
+    private IEnumType ResolveEnumType()
+    {
+        var enumAttribute = TryGetMappingParameter(PlcMappingParameter.Enum);
+        if (enumAttribute is not null)
+            return ((IEnumType)GetDataType(enumAttribute.Value));
+
+        var dataType = Symbol.GetResolvedDataType();
+        if (dataType is IEnumType enumType)
+            return (enumType);
+
+        throw new NullReferenceException($"Failed to determine enum datatype for symbol '{Symbol.InstancePath}'.");
+    }
     private uint MatchEnumState(string text, IEnumType enumType)
     {
-        if (enumType.EnumValues.TryParse(text, out IEnumValue val))
-            return (Convert.ToUInt32(val.Primitive));
+        if (enumType.EnumValues.TryParse(text, out IEnumValue? val) && (val is not null))
+            return (Convert.ToUInt32(val.Value));
         else
             throw new KeyNotFoundException($"State '{text}' did not match any declared members of type '{enumType.Name}'.");
     }
@@ -346,15 +361,18 @@ public class MultistateMapping : Mapping<uint>
 internal sealed class MappingFactory
 {
     #region Constants
+    static readonly MappingAttribute PrimitiveAnalogInfo = new(EntityType.Sensor, SymbolType.PrimitiveAnalog);
+    static readonly MappingAttribute PrimitiveBooleanInfo = new(EntityType.BinarySensor, SymbolType.PrimitiveBinary);
+    static readonly MappingAttribute PrimitiveMultistateInfo = new(EntityType.Sensor, SymbolType.PrimitiveMultistate);
     static readonly IReadOnlyDictionary<Type, MappingAttribute[]> MappingTypes = UtilAssembly
         .GetDefinedTypesOf<MappingAttribute>()
         .ToDictionary(
             t => t,
             t => t.GetCustomAttributes<MappingAttribute>().ToArray()
         );
-    static readonly IReadOnlyDictionary<FunctionBlock, (Type Type, MappingAttribute Info)> MappingInfo = MappingTypes
+    static readonly IReadOnlyDictionary<SymbolType, (Type Type, MappingAttribute Info)> MappingInfo = MappingTypes
         .SelectMany(t => t.Value)
-        .SelectMany(m => m.SupportedPlcTypes)
+        .SelectMany(m => m.SupportedSymbolTypes)
         .ToDictionary(
             pt => pt,
             pt => GetMappingInfo(pt)
@@ -373,13 +391,27 @@ internal sealed class MappingFactory
     {
         try
         {
-            var fb = symbol.GetFunctionBlockType(out _);
-            if (fb == FunctionBlock.View)
-                return (null); // Skip (Not required as mapping target).
-            else if (MappingInfo.TryGetValue(fb, out var mapping))
-                return ((IMapping)Activator.CreateInstance(mapping.Type, [mapping.Info, symbol, device])!);
+            if (symbol.TryGetSymbolType(out var fb, out _))
+            {
+                if (fb == SymbolType.View)
+                    return (null); // Skip (Not required as mapping target).
+                else if (MappingInfo.TryGetValue(fb, out var mapping))
+                    return ((IMapping)Activator.CreateInstance(mapping.Type, [mapping.Info, symbol, device])!);
+                else
+                    throw new NotSupportedException($"Datatype '{fb.GetTypeName()}' is not supported!");
+            }
+            else if (symbol.TryGetPrimitiveMappingType(out var primitiveType))
+            {
+                return (primitiveType switch
+                {
+                    SymbolType.PrimitiveAnalog => new AnalogMapping(PrimitiveAnalogInfo, symbol, device, primitiveType),
+                    SymbolType.PrimitiveBinary => new BooleanMapping(PrimitiveBooleanInfo, symbol, device, primitiveType),
+                    SymbolType.PrimitiveMultistate => new MultistateMapping(PrimitiveMultistateInfo, symbol, device, primitiveType),
+                    _ => throw new NotSupportedException($"Primitive datatype '{symbol.TypeName}' is not supported!")
+                });
+            }
             else
-                throw new NotSupportedException($"Datatype '{fb.GetTypeName()}' is not supported!");
+                throw new NotSupportedException($"Datatype '{symbol.TypeName}' is not supported!");
         }
         catch (Exception ex)
         {
@@ -390,13 +422,13 @@ internal sealed class MappingFactory
 
 
     #region Helper
-    private static (Type Type, MappingAttribute Info) GetMappingInfo(FunctionBlock plcType)
+    private static (Type Type, MappingAttribute Info) GetMappingInfo(SymbolType plcType)
     {
         foreach (var info in MappingTypes)
         {
             foreach (var attrib in info.Value)
             {
-                if (attrib.SupportedPlcTypes.Contains(plcType))
+                if (attrib.SupportedSymbolTypes.Contains(plcType))
                     return (info.Key, attrib);
             }
         }
@@ -413,6 +445,7 @@ internal static partial class Ext
         .GetAttribute().PlcAttribute
         .Split('.')
         .First();
+    private static readonly string[] PrimitiveNumericTypeNames = ["SINT", "USINT", "BYTE", "INT", "UINT", "WORD", "DINT", "UDINT", "DWORD", "LINT", "ULINT", "LWORD", "REAL", "LREAL"];
     private static readonly IReadOnlyDictionary<string, PlcMappingParameter> PlcMappingAttributes = Enum
         .GetValues<PlcMappingParameter>()
         .ToDictionary(
@@ -542,39 +575,175 @@ internal static partial class Ext
         .Select(s => s.TryGetMappingParameterAttribute(PlcMappingParameter.Name)?.Value)
         .Where(s => !string.IsNullOrEmpty(s)));
 
-    public static bool IsFunctionBlock(this ISymbol source, FunctionBlock expectedType) => (GetFunctionBlockType(source, out _) == expectedType);
-    public static FunctionBlock GetFunctionBlockType(this string source)
+    public static bool IsSymbolType(this ISymbol source, SymbolType expectedType) => (GetSymbolType(source, out _) == expectedType);
+    public static bool IsViewSymbolTypeOrSubclass(this ISymbol source) => TryGetViewBaseType(source.DataType, out _);
+    public static bool IsSupportedMappedMember(this ISymbol source)
     {
-        var parts = source.Split('.');
+        if (!source.IsMapped())
+            return (false);
+        if (source.TryGetSymbolType(out var symbolType, out _))
+            return (symbolType != SymbolType.View);
+        return (source.TryGetPrimitiveMappingType(out _));
+    }
+    public static bool TryGetSymbolType(this ISymbol source, out SymbolType symbolType, out IDataType? dataType)
+    {
+        symbolType = default;
+        dataType = null;
+
+        if (!TryGetMiniFrameBaseType(source.DataType, out var miniFrameType))
+            return (false);
+        if (!miniFrameType.Name.TryGetSymbolType(out symbolType))
+            return (false);
+
+        dataType = miniFrameType;
+        return (true);
+    }
+    public static bool HasSupportedMappedMembers(this ISymbol source) => source.SubSymbols
+        .Flatten()
+        .Where(s => !ReferenceEquals(s, source))
+        .Any(IsSupportedMappedMember);
+    public static bool TryGetSymbolType(this string source, out SymbolType symbolType)
+    {
+        symbolType = default;
+        if (string.IsNullOrWhiteSpace(source))
+            return (false);
+
+        var parts = source.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string typeName;
+
         switch (parts.Length)
         {
-            case 1: break;
-            case 2:
-                if (!parts.First().Equals(Tc3_MiniFrame.LibraryName, StringComparison.InvariantCultureIgnoreCase))
-                    throw new ArgumentException($"Type '{source}' is not a '{Tc3_MiniFrame.LibraryName}' type!");
+            case 1:
+                typeName = parts[0];
+                if (!typeName.StartsWith($"{Tc3_MiniFrame.FunctionBlockPrefix}_", StringComparison.InvariantCultureIgnoreCase))
+                    return (false);
                 break;
 
-            default: throw new KeyNotFoundException($"Type '{source}' doesn't seem to be a functionblock!");
+            case 2:
+                if (!parts[0].Equals(Tc3_MiniFrame.LibraryName, StringComparison.InvariantCultureIgnoreCase))
+                    return (false);
+                typeName = parts[1];
+                break;
+
+            default:
+                return (false);
         }
 
-        var typeName = parts.Last();
-        return (Tc3_MiniFrame.FunctionBlocks.GetKeyOf((i) => i.TypeName.Equals(typeName)));
+        return (Tc3_MiniFrame.SymbolTypes.TryGetKeyOf(
+            i => i.TypeName.Equals(typeName, StringComparison.InvariantCultureIgnoreCase),
+            out symbolType));
     }
-    public static FunctionBlock GetFunctionBlockType(this ISymbol source, out IDataType dataType)
+    public static SymbolType GetSymbolType(this string source)
     {
-        dataType = GetFunctionBlockType(source);
-        return (dataType.Name.GetFunctionBlockType());
-    }
-    public static IDataType GetFunctionBlockType(this ISymbol source)
-    {
-        if (source.IsMiniFrameType())
-            return (source.DataType);
-
-        if (source.DataType is not IStructType structType)
-            throw new NotSupportedException($"Failed to determine functionblock type from symbol '{source.InstancePath}' of not non-structured datatype '{source.TypeName}'!");
-        else if (!structType.BaseType.IsMiniFrameType())
-            throw new NotSupportedException($"Failed to determine functionblock type from symbol '{source.InstancePath}' of not supported datatype '{source.TypeName}'!");
+        if (source.TryGetSymbolType(out var symbolType))
+            return (symbolType);
         else
-            return (structType.BaseType);
+            throw new KeyNotFoundException($"Type '{source}' doesn't seem to be a supported symbol type!");
+    }
+    public static SymbolType GetSymbolType(this ISymbol source, out IDataType dataType)
+    {
+        dataType = GetMiniFrameType(source);
+        return (dataType.Name.GetSymbolType());
+    }
+    public static IDataType GetMiniFrameType(this ISymbol source)
+    {
+        if (TryGetMiniFrameBaseType(source.DataType, out var dataType))
+            return (dataType);
+
+        if (source.DataType is not IStructType)
+            throw new NotSupportedException($"Failed to determine MiniFrame type from symbol '{source.InstancePath}' of not non-structured datatype '{source.TypeName}'!");
+
+        throw new NotSupportedException($"Failed to determine MiniFrame type from symbol '{source.InstancePath}' of not supported datatype '{source.TypeName}'!");
+    }
+    public static IDataType GetResolvedDataType(this ISymbol source) => GetResolvedDataType(source.DataType);
+    public static IDataType GetResolvedDataType(this IDataType? source)
+    {
+        var dataType = source;
+        while (dataType is IAliasType aliasType)
+            dataType = aliasType.BaseType;
+
+        return (dataType ?? throw new NotSupportedException("Failed to resolve datatype."));
+    }
+    public static bool TryGetPrimitiveMappingType(this ISymbol source, out SymbolType symbolType)
+    {
+        var dataType = source.GetResolvedDataType();
+        if (dataType is IEnumType)
+        {
+            symbolType = SymbolType.PrimitiveMultistate;
+            return (true);
+        }
+        if (dataType is not IPrimitiveType)
+        {
+            symbolType = default;
+            return (false);
+        }
+
+        var typeName = dataType.Name.Split('.').Last().ToUpperInvariant();
+        if (typeName.Equals("BOOL"))
+        {
+            symbolType = SymbolType.PrimitiveBinary;
+            return (true);
+        }
+        if (PrimitiveNumericTypeNames.Contains(typeName))
+        {
+            symbolType = SymbolType.PrimitiveAnalog;
+            return (true);
+        }
+
+        symbolType = default;
+        return (false);
+    }
+
+    private static bool TryGetViewBaseType(IDataType? source, out IDataType dataType)
+    {
+        var currentType = source;
+        while (currentType is not null)
+        {
+            if (currentType.IsMiniFrameType())
+            {
+                if (currentType.Name.TryGetSymbolType(out var symbolType) && (symbolType == SymbolType.View))
+                {
+                    dataType = currentType;
+                    return (true);
+                }
+
+                break;
+            }
+
+            if (currentType is not IStructType structType)
+                break;
+
+            currentType = structType.BaseType;
+        }
+
+        dataType = null!;
+        return (false);
+    }
+
+    private static bool TryGetMiniFrameBaseType(IDataType? source, out IDataType dataType)
+    {
+        var currentType = source;
+        while (currentType is not null)
+        {
+            if (currentType is IAliasType aliasType)
+            {
+                currentType = aliasType.BaseType;
+                continue;
+            }
+
+            if (currentType.IsMiniFrameType())
+            {
+                dataType = currentType;
+                return (true);
+            }
+
+            if (currentType is not IStructType structType)
+                break;
+
+            currentType = structType.BaseType;
+        }
+
+        dataType = null!;
+        return (false);
     }
 }

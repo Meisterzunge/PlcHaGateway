@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Weather" Id="{f5f75def-e867-4f61-93d3-ecec2d5584d9}" SpecialFunc="None">
+    <Declaration><![CDATA[// A nice weather station.
+FUNCTION_BLOCK FB_Weather EXTENDS FB_Mfr_View
+VAR_OUTPUT
+	{region 'Model'}
+		{attribute 'PlcHa.Mapping' := 'weather.weatherapi_weather:temperature'}
+		{attribute 'PlcHa.Name' := 'Temperature'}
+		fTemp : REAL;
+		{attribute 'PlcHa.Mapping' := 'weather.weatherapi_weather:humidity'}
+		{attribute 'PlcHa.Name' := 'Humidity'}
+		fHum : REAL;
+		{attribute 'PlcHa.Mapping' := 'weather.weatherapi_weather:precipitation'}
+		{attribute 'PlcHa.Name' := 'Precipitation'}
+		fPres : REAL;
+		{attribute 'PlcHa.Mapping' := 'weather.weatherapi_weather:wind_speed'}
+		{attribute 'PlcHa.Name' := 'Wind speed'}
+		fWndSpd : REAL;
+	{endregion}
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
