@@ -43,6 +43,8 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
     public IEnumerable<IMapping> Mappings => DeviceMappings
         .SelectMany(d => d.Mappings)
         .Concat(SymbolMappings);
+    public IEnumerable<IEventBinding> Events => DeviceMappings
+        .SelectMany(d => d.Events);
     #endregion
 
 
@@ -74,6 +76,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
             {
                 LogEvent.Gw.LogInformation($"Created {DeviceMappings.Count} virtual device(s).");
                 LogEvent.Gw.LogInformation($"Created {totalMappings} mapping(s) total.");
+                LogEvent.Gw.LogInformation($"Created {Events.Count()} event binding(s).");
             }
         }
         catch (Exception ex)
@@ -106,6 +109,19 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         LogEvent.Ads.LogInformation($"Start read job for cyclic update.");
         this.plcReadCyclic = plc.CreateSymbolReadCommand(Mappings.OfCyclicallyReadable());
 
+        LogEvent.Gw.LogInformation("Initializing event bindings...");
+        foreach (var evt in Events)
+        {
+            try
+            {
+                await evt.InitAsync(ha, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                LogEvent.Gw.LogError(ex, "Failed to initialize event '{0}'.", evt.EntityId);
+            }
+        }
+
         scheduler.ScheduleAsync(CyclicUpdateMappingsAsync);
     }
     public void Dispose() => plc.Dispose();
@@ -119,6 +135,20 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
             LogEvent.Hass.LogTrace($"Updated {updated.Length} [GW -> {context}] mapping(s) in cyclic update.");
 
         return (updated);
+    }
+    private async Task ProcessEventsAsync(CancellationToken cancellationToken)
+    {
+        foreach (var evt in Events)
+        {
+            try
+            {
+                await evt.ProcessAsync(ha, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                LogEvent.Gw.LogError(ex, "Failed to process event '{0}'.", evt.EntityId);
+            }
+        }
     }
     private async Task CyclicUpdateMappingsAsync(IScheduler scheduler, CancellationToken cancellationToken)
     {
@@ -146,6 +176,9 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
             await UpdateMappingsAsync(AutomationContext.Hass, cancellationToken)
                 .DetermineUpdateFactor(ref updateFactor)
                 .ConfigureAwait(false);
+
+        // Step 4) Process event bindings (PLC bBusy → HA notification service calls):
+        await ProcessEventsAsync(cancellationToken).ConfigureAwait(false);
 
         // Schedule next update:
         var delay = (config.GetValue<double>("CyclicUpdate") * updateFactor);

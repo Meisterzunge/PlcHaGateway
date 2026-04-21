@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_Notification" Id="{ffef2934-5b87-4643-97bc-9a5be6bd52b0}" SpecialFunc="None">
+    <Declaration><![CDATA[// Fire-and-forget notification.
+// Each rising edge of bSend creates a new notification in Home Assistant (no deduplication).
+FUNCTION_BLOCK FB_Mfr_Notification EXTENDS FB_Mfr
+VAR_INPUT
+	bSend		: BOOL;
+	sTitle		: STRING;
+	sMessage	: T_MaxString;
+	eSeverity	: E_Mfr_NotifySeverity := E_Mfr_NotifySeverity.eInfo;
+END_VAR
+VAR_INPUT CONSTANT
+	bAutoReset	: BOOL;		// If TRUE, the FB clears bSend after a detected rising edge.
+END_VAR
+VAR_OUTPUT
+	bBusy		: BOOL;		// Gateway handshake: set by FB on trigger, cleared by gateway after delivery.
+END_VAR
+VAR
+	rtSend		: R_TRIG;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+rtSend(CLK := bSend);
+IF rtSend.Q THEN
+	bBusy := TRUE;
+	IF (bAutoReset) THEN
+		bSend := FALSE;
+	END_IF
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
