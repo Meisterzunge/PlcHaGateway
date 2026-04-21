@@ -1,0 +1,18 @@
+[Unit]
+Description=PlcHaGateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+Group=__SERVICE_USER__
+WorkingDirectory=__DEPLOY_DIR__
+Environment=DOTNET_ENVIRONMENT=Production
+ExecStart=/usr/bin/dotnet __DEPLOY_DIR__/PlcHaGateway.dll
+Restart=always
+RestartSec=5
+SyslogIdentifier=PlcHaGateway
+
+[Install]
+WantedBy=multi-user.target
