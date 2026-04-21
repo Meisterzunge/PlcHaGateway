@@ -164,3 +164,63 @@ dotnet run
 ```
 
 Or deploy as a NetDaemon app via the provided `Dockerfile`.
+
+## Linux systemd deployment (bash)
+
+### 1) Clone and prepare config
+
+`deploy.sh` maintains a local `appsettings.Production.json` in the repo root.
+
+- on start, the script tries to read this file as "last entered" values
+- if values are missing, hard-coded script defaults are used
+- after prompts, the file is updated with the latest entered values
+
+This file is intentionally gitignored.
+
+### 2) Run interactive deployment
+
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+The script will:
+
+- publish with `dotnet publish` (default `Release`)
+- deploy to local path (default `/opt/plchagateway`)
+- prompt runtime settings using last entered values/defaults and update local `appsettings.Production.json`
+- copy settings file into the deploy folder (defaults to local `./appsettings.Production.json`)
+- create dedicated service user (default: current executing user) if missing
+- use `PlcHaGateway.service` template and install into `/etc/systemd/system/` when missing
+- if unit already exists, ask before overwriting (default: no)
+- ask whether to enable and start/restart service (default: yes)
+
+### 3) Non-interactive examples
+
+Deploy with explicit parameters:
+
+```bash
+./deploy.sh \
+  --non-interactive \
+  --deploy-dir /opt/plchagateway \
+  --service-user plchagateway \
+  --appsettings ./myhost.appsettings.Production.json
+```
+
+Use script-managed state file only:
+
+```bash
+./deploy.sh --non-interactive
+```
+
+Force overwrite the local systemd unit:
+
+```bash
+./deploy.sh --force-service-unit
+```
+
+Show all options:
+
+```bash
+./deploy.sh --help
+```
