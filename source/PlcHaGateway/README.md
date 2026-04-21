@@ -30,6 +30,57 @@ Apply these `{attribute}` pragmas to mapped TwinCAT symbol declarations. Support
 | `PlcHa.Icon` | No | `mdi:thermometer` | MDI icon. |
 | `PlcHa.Enum` | Yes (select) | `E_OffOnTest` | TwinCAT enum type name for `select` / multistate entities. |
 
+### Parameter overrides in virtual devices
+
+Mapped parameters are still collected from the mapped entity itself. In addition, any parent on the mapped symbol path can override a descendant mapping parameter by targeting that symbol in braces:
+
+- Syntax: `PlcHa.<Parameter>[<RelativeTargetPath>]`
+- Example parameter names: `PlcHa.Enum[ManOvrd]`, `PlcHa.Enum[OuterAggregate.ManOvrd]`
+- Scope: override lookup is available for symbols inside a `FB_Mfr_View` virtual-device subtree (the virtual device itself and its descendants)
+- Search path: from the mapped symbol upward through the full parent/inheritance tree to the virtual-device root (inclusive), never beyond
+- Precedence: the most upward/outer matching parent override wins; if none exists, the mapped symbol attribute/default behavior is used
+
+Example chain: initial declaration, first override, second override.
+
+1. Initial declaration in the template (`FB_UnitBool`)
+
+```st
+FUNCTION_BLOCK FB_UnitBool EXTENDS FB_Mfr_View
+VAR
+  {attribute 'PlcHa.Mapping'}
+  {attribute 'PlcHa.Name' := 'Manual override'}
+  {attribute 'PlcHa.Enum' := 'E_OnOffA'}
+  ManOvrd : FB_Mfr_MValOp;
+END_VAR
+```
+
+2. First override on the direct child instance (`VlvLoad`) within some outer aggregate (`FB_Aggregate`)
+
+```st
+FUNCTION_BLOCK FB_Aggregate EXTENDS FB_Mfr_View
+VAR
+  {attribute 'PlcHa.Mapping'}
+  {attribute 'PlcHa.Name' := 'Load valve'}
+  {attribute 'PlcHa.Enum[ManOvrd]' := 'E_OpnClsA'}
+  VlvLoad : FB_UnitBool;
+END_VAR
+```
+
+3. Second override on a higher parent that wraps the `OuterAggregate`
+
+```st
+FUNCTION_BLOCK FB_Plant EXTENDS FB_Mfr_View
+VAR
+  {attribute 'PlcHa.Mapping'}
+  {attribute 'PlcHa.Name' := 'Aggregate'}
+  {attribute 'PlcHa.Enum[VlvLoad.ManOvrd]' := 'E_UpDownA'}
+  Agg : FB_Aggregate;
+END_VAR
+```
+
+Effective enum on `ManOvrd`: `E_UpDownA` (outermost matching override wins).
+Override search stops at `FB_Plant` because it is the virtual-device root.
+
 ### Native binding (state)
 
 Mapping value contains a `.`  binds to an existing HA entity, reads entity state.

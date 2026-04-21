@@ -149,7 +149,7 @@ public abstract class Mapping<T> : IMapping
         this.Name = symbol.GetEntityName(owner) ?? Symbol.InstanceName;
         this.DeviceClass = TryGetMappingParameter(PlcMappingParameter.DeviceClass)?.Value;
 
-        LogEvent.Gw.LogTrace($"Created mapping for '{symbol.InstancePath}'.");
+        LogEvent.Gw.LogTrace($"Created mapping '{this}'.");
     }
 
 
@@ -194,13 +194,13 @@ public abstract class Mapping<T> : IMapping
     }
     protected ITypeAttribute GetMappingParameter(PlcMappingParameter parameter)
     {
-        var attr = Symbol.TryGetMappingParameterAttribute(parameter);
+        var attr = Symbol.TryGetMappingParameterAttribute(parameter, Owner);
         if (attr is null)
             throw new NullReferenceException($"Mandatory mapping parameter '{parameter.GetAttribute().PlcAttribute}' not specified.");
         else
             return (attr);
     }
-    protected ITypeAttribute? TryGetMappingParameter(PlcMappingParameter parameter) => Symbol.TryGetMappingParameterAttribute(parameter);
+    protected ITypeAttribute? TryGetMappingParameter(PlcMappingParameter parameter) => Symbol.TryGetMappingParameterAttribute(parameter, Owner);
 
     bool IMapping.SetValue(object? value, AutomationContext? source)
     {
@@ -508,13 +508,46 @@ internal static partial class Ext
     public static IEnumerable<ISymbol> WhereMapped(this IEnumerable<ISymbol> source) => source.Where(IsMapped);
     public static bool IsMapped(this ISymbol source) => (source.TryGetMappingParameterAttribute() is not null);
     public static IEnumerable<ITypeAttribute> GetMappingParameterAttributes(this ISymbol source) => source.Attributes
-        .Where(a => PlcMappingAttributes.ContainsKey(a.Name.ToLower()));
-    public static ITypeAttribute? TryGetMappingParameterAttribute(this ISymbol source, PlcMappingParameter parameter = PlcMappingParameter.Mapping)
+        .Where(a => a.TryResolveMappingParameterAttribute(out _, out var targetPath) && (targetPath is null));
+    public static ITypeAttribute? TryGetMappingParameterAttribute(this ISymbol source, PlcMappingParameter parameter = PlcMappingParameter.Mapping) => source
+        .GetMappingParameterAttributes()
+        .FirstOrDefault(a => a.Name.Equals(parameter.GetAttribute().PlcAttribute, StringComparison.InvariantCultureIgnoreCase));
+    /// <summary>
+    /// Resolves a mapping parameter for a mapped symbol and supports virtual-device scoped overrides declared on parent symbols.
+    /// Override syntax: PlcHa.X[Target.Path]
+    /// </summary>
+    public static ITypeAttribute? TryGetMappingParameterAttribute(this ISymbol source, PlcMappingParameter parameter, VirtualDevice? owner)
     {
-        var attribName = parameter.GetAttribute().PlcAttribute;
-        return (source
-            .GetMappingParameterAttributes()
-            .FirstOrDefault(a => a.Name.Equals(attribName, StringComparison.InvariantCultureIgnoreCase)));
+        // Overrides are only supported in virtual-device context.
+        if (owner?.Symbol is not null)
+        {
+            var root = owner.Symbol;
+            var parent = source.Parent;
+            ITypeAttribute? selectedOverride = null;
+            while (parent is not null)
+            {
+                var targetPath = GetRelativeSymbolPath(parent, source);
+                var overrideAttribute = parent.Attributes.FirstOrDefault(a =>
+                    a.TryResolveMappingParameterAttribute(out var attrParameter, out var attrTarget)
+                    && (attrParameter == parameter)
+                    && !string.IsNullOrEmpty(attrTarget)
+                    && attrTarget.Equals(targetPath, StringComparison.InvariantCultureIgnoreCase)
+                );
+                if (overrideAttribute is not null)
+                    selectedOverride = overrideAttribute;
+
+                if (ReferenceEquals(parent, root))
+                    break;
+                parent = parent.Parent;
+            }
+
+            // Most upward/outer override wins.
+            if (selectedOverride is not null)
+                return (selectedOverride);
+        }
+
+        // Fallback to mapped-entity attribute/default behavior.
+        return (source.TryGetMappingParameterAttribute(parameter));
     }
     public static string? TryGetMapping(this ISymbol source)
     {
@@ -543,6 +576,49 @@ internal static partial class Ext
             parent = parent.Parent;
         }
     }
+    private static string GetRelativeSymbolPath(ISymbol anchor, ISymbol target)
+    {
+        var names = new List<string>();
+        var symbol = target;
+        while ((symbol is not null) && !ReferenceEquals(symbol, anchor))
+        {
+            names.Add(symbol.InstanceName);
+            symbol = symbol.Parent;
+        }
+        if (!ReferenceEquals(symbol, anchor))
+            throw new InvalidOperationException($"Failed to determine symbol path from '{anchor.InstancePath}' to '{target.InstancePath}'.");
+
+        names.Reverse();
+        return (string.Join('.', names));
+    }
+    private static bool TryResolveMappingParameterAttribute(this ITypeAttribute source, out PlcMappingParameter parameter, out string? targetPath)
+    {
+        parameter = default;
+        targetPath = null;
+
+        var attributeName = source.Name?.Trim();
+        if (string.IsNullOrEmpty(attributeName))
+            return (false);
+
+        var openBracket = attributeName.IndexOf('[');
+        if (openBracket >= 0)
+        {
+            var closeBracket = attributeName.LastIndexOf(']');
+            if ((closeBracket <= openBracket) || (closeBracket != (attributeName.Length - 1)))
+                return (false);
+
+            targetPath = attributeName.Substring(openBracket + 1, closeBracket - openBracket - 1).Trim();
+            if (string.IsNullOrEmpty(targetPath))
+                return (false);
+
+            targetPath = NormalizeTargetPath(targetPath);
+            attributeName = attributeName.Substring(0, openBracket);
+        }
+
+        return (PlcMappingAttributes.TryGetValue(attributeName.ToLower(), out parameter));
+    }
+    private static string NormalizeTargetPath(string source) => string.Join('.', source
+        .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     public static (string Path, IntegrationType Backend, string? AttributeKey) GetEntityInfo(this ISymbol source)
     {
         var mapping = source.TryGetMappingParameterAttribute()?.Value;
