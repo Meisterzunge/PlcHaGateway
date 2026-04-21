@@ -134,6 +134,7 @@ internal static partial class Ext
                 // Apply configuration:
                 addCfg.Add("state_topic", $"homeassistant/{source.Info.EntityTypeName}/{source.Owner.Identifier}/state");
                 addCfg.Add("value_template", string.Format("{{{{ value_json.{0} }}}}", source.EntityId));
+                addCfg.Add("default_entity_id", $"{source.Info.EntityTypeName}.{source.EntityId}");
                 addCfg.Add("device", device);
             }
         }
