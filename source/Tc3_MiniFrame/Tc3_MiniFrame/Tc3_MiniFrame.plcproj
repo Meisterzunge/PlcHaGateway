@@ -29,6 +29,18 @@
     <VirtualLibrary>true</VirtualLibrary>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Events\E_Mfr_NotifySeverity.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Events\FB_Mfr_Event.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Events\FB_Mfr_Notification.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_Mfr.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Global\Mfr_Global.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
@@ -36,9 +48,6 @@
     <Compile Include="Global\Mfr_Param.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
-    </Compile>
-    <Compile Include="Objects\FB_Mfr.TcPOU">
-      <SubType>Code</SubType>
     </Compile>
     <Compile Include="Objects\FB_Mfr_AI.TcPOU">
       <SubType>Code</SubType>
@@ -79,6 +88,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Global" />
+    <Folder Include="Events" />
     <Folder Include="Objects" />
     <Folder Include="Universal" />
   </ItemGroup>

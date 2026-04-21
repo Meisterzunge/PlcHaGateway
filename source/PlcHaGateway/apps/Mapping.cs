@@ -63,12 +63,18 @@ public class VirtualDevice : IEnumerable<ISymbol>
             .WhereMapped()
             .SelectWhereNotNull(s => MappingFactory.CreateMapping(s, this)!)
             .ToArray();
+        this.Events = symbol.SubSymbols
+            .Flatten()
+            .WhereMapped()
+            .SelectWhereNotNull(s => EventBindingFactory.TryCreate(s, this))
+            .ToArray();
     }
 
 
     #region Properties.Management
     public ISymbol Symbol { get; }
     public IMapping[] Mappings { get; }
+    public IEventBinding[] Events { get; }
     #endregion
     #region Properties
     public string Identifier { get; }
@@ -395,6 +401,8 @@ internal sealed class MappingFactory
             {
                 if (fb == SymbolType.View)
                     return (null); // Skip (Not required as mapping target).
+                else if (fb.IsEventType())
+                    return (null); // Skip (Handled as event bindings, not IMapping).
                 else if (MappingInfo.TryGetValue(fb, out var mapping))
                     return ((IMapping)Activator.CreateInstance(mapping.Type, [mapping.Info, symbol, device])!);
                 else

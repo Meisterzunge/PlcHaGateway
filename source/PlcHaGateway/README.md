@@ -145,6 +145,123 @@ VAR
 END_VAR
 ```
 
+## MFFB type reference
+
+| MFFB type | HA entity | Direction | Notes |
+|---|---|---|---|
+| `FB_Mfr_AI` | `sensor` | PLC → HA | Physical analog input |
+| `FB_Mfr_AVal` | `sensor` | PLC → HA | Analog value |
+| `FB_Mfr_BI` | `binary_sensor` | PLC → HA | Physical binary input |
+| `FB_Mfr_BVal` | `binary_sensor` | PLC → HA | Binary value |
+| `FB_Mfr_MVal` | `sensor` (enum) | PLC → HA | Multistate value. Requires `PlcHa.Enum`. |
+| `FB_Mfr_AO` | `number` | PLC ↔ HA | Physical analog output |
+| `FB_Mfr_AValOp` | `number` | PLC ↔ HA | Analog operational value |
+| `FB_Mfr_BO` | `switch` | PLC ↔ HA | Physical binary output |
+| `FB_Mfr_BValOp` | `switch` | PLC ↔ HA | Binary operational value |
+| `FB_Mfr_MValOp` | `select` | PLC ↔ HA | Multistate operational value. Requires `PlcHa.Enum`. |
+| `FB_Mfr_View` | — | — | Virtual-device grouping root |
+| `FB_Mfr_Notification` | `persistent_notification` | PLC → HA | Fire-and-forget; each trigger adds a new sidebar entry |
+| `FB_Mfr_Event` | `persistent_notification` | PLC ↔ HA | Persistent; deduplicates by entity path; user-dismiss writes back to PLC |
+
+## Event bindings (`FB_Mfr_Notification` / `FB_Mfr_Event`)
+
+Event FBs send Home Assistant persistent notifications without creating an MQTT entity. They are discovered inside a `FB_Mfr_View` subtree the same way as regular MFFBs.
+
+### Event mapping attributes
+
+- Required: `{attribute 'PlcHa.Mapping'}`
+- Use only `PlcHa.Mapping` for event FBs (`FB_Mfr_Event`, `FB_Mfr_Notification`).
+
+Recommended TwinCAT layout for maintainability is to keep event declarations in a dedicated region (for example `{region 'Events'}`), separate from regular model mappings.
+
+### Common inputs
+
+| Variable | Type | Description |
+|---|---|---|
+| `sMessage` | `STRING(255)` | Notification body. Supports Markdown. |
+| `sTitle` | `STRING(80)` | Notification title. Severity prefix is prepended automatically. |
+| `eSeverity` | `E_Mfr_NotifySeverity` | `Info` (default), `Warning` (⚠), `Error` (❌). |
+
+### `FB_Mfr_Notification` — fire-and-forget
+
+Rising edge of `bSend` latches `bBusy := TRUE`. The gateway detects the rising edge, calls `persistent_notification.create` **without a notification ID** (each trigger creates a separate sidebar entry), then clears `bBusy`.
+
+`bAutoReset` is a constant input on `FB_Mfr_Notification`. If set to `TRUE`, the FB writes `bSend := FALSE` immediately after it detects the rising edge. This is useful for pulse-style usage where the send flag should self-clear after one cycle.
+
+```st
+{attribute 'PlcHa.Mapping' := 'pump_started'}
+fbPumpStarted : FB_Mfr_Notification;
+
+// In body:
+fbPumpStarted(
+    bSend     := bPumpJustStarted,
+    sMessage  := 'Circulation pump started.',
+    sTitle    := 'Pump',
+    eSeverity := E_Mfr_NotifySeverity.eInfo
+);
+```
+
+### `FB_Mfr_Event` — persistent / deduplicating
+
+`bActive` level-triggers the notification. `TRUE` → create or refresh (using entity path as `notification_id`); `FALSE` → dismiss. The gateway writes `bAckd := TRUE` when the user manually dismisses the notification in the HA sidebar.
+
+```st
+{attribute 'PlcHa.Mapping' := 'boiler_fault'}
+fbBoilerFault : FB_Mfr_Event;
+
+// In body:
+fbBoilerFault(
+    bActive   := xBoilerFault,
+    sMessage  := 'Boiler pressure fault active.',
+    sTitle    := 'Boiler',
+    eSeverity := E_Mfr_NotifySeverity.eError
+);
+```
+
+On gateway restart, the sidebar state is re-aligned with the current PLC `bActive` value (stale notifications are dismissed, missing ones are re-created).
+
+### Single shared FB vs. dedicated FBs
+
+Every `FB_Mfr_Notification` or `FB_Mfr_Event` instance with `{attribute 'PlcHa.Mapping'}` consumes one event-binding slot in the gateway. Two design approaches exist:
+
+**Shared (single FB, multiplexed message)** — Business logic selects the text before pulsing/setting the FB:
+
+```st
+// One FB for all fault types
+{attribute 'PlcHa.Mapping' := 'fault'}
+fbFault : FB_Mfr_Event;
+
+// In body — pick message before asserting bActive:
+fbFault.sMessage := SEL(xPressureFault, 'Temperature fault', 'Pressure fault');
+fbFault(bActive := xPressureFault OR xTemperatureFault, ...);
+```
+
+*Pro:* only one gateway mapping consumed.  
+*Con:* only one notification shown at a time; concurrent faults overwrite each other's message.
+
+**Dedicated (one FB per event)** — Each fault has its own FB and its own sidebar entry:
+
+```st
+{attribute 'PlcHa.Mapping' := 'pressure_fault'}
+fbPressureFault : FB_Mfr_Event := (
+  sMessage  := 'Pressure fault active.',
+  sTitle    := 'Fault!',
+  eSeverity := E_Mfr_NotifySeverity.eError
+);
+
+{attribute 'PlcHa.Mapping' := 'temperature_fault'}
+fbTemperatureFault : FB_Mfr_Event := (
+  sMessage  := 'Temperature limit active.',
+  sTitle    := 'Attention please.',
+  eSeverity := E_Mfr_NotifySeverity.eWarning
+);
+```
+
+*Pro:* concurrent events show as independent notifications; each can be dismissed individually.  
+*Con:* one gateway mapping slot per event.
+
+Choose the **shared** approach when events are mutually exclusive or when mapping count matters. Choose **dedicated** FBs when events can occur simultaneously and independent dismiss/acknowledge is required.
+
 ## Configuration (`appsettings.json`)
 
 ```json

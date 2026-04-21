@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_Event" Id="{b8d4f2a6-e7c3-4d19-a532-7b1e6c8f4920}" SpecialFunc="None">
+    <Declaration><![CDATA[// Persistent, deduplicating event.
+// bActive TRUE  → creates/updates a notification in the HA sidebar (notification_id = entity path).
+// bActive FALSE → dismisses the notification.
+// bAckd is set by the gateway when the user manually dismisses the notification in the HA sidebar.
+FUNCTION_BLOCK FB_Mfr_Event EXTENDS FB_Mfr
+VAR_INPUT
+	bActive		: BOOL;
+	sTitle		: STRING;
+	sMessage	: T_MaxString;
+	eSeverity	: E_Mfr_NotifySeverity := E_Mfr_NotifySeverity.eInfo;
+END_VAR
+VAR_OUTPUT
+	bBusy		: BOOL;		// Gateway handshake: set by FB on state change, cleared by gateway after delivery.
+	bAckd		: BOOL;		// Set by gateway when user dismisses in HA sidebar; cleared when bActive goes FALSE.
+END_VAR
+VAR
+	bLastActive	: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+
+IF bActive <> bLastActive THEN
+	bBusy := TRUE;
+	bLastActive := bActive;
+	IF NOT bActive THEN
+		bAckd := FALSE;
+	END_IF
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

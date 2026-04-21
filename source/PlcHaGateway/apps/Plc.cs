@@ -117,6 +117,11 @@ public enum SymbolType
     [FunctionBlock("View")]
     View,
 
+    [FunctionBlock("Notification")]
+    Notification,
+    [FunctionBlock("Event")]
+    Event,
+
     PrimitiveAnalog,
     PrimitiveBinary,
     PrimitiveMultistate
@@ -264,8 +269,9 @@ internal static partial class Ext
     private static readonly SymbolType[] MiniFrameInputTypes = { SymbolType.AnalogInput, SymbolType.BinaryInput };
     private static readonly SymbolType[] MiniFrameOutputTypes = { SymbolType.AnalogOutput, SymbolType.BinaryOutput };
     private static readonly SymbolType[] MiniFrameValueTypes = { SymbolType.AnalogValue, SymbolType.BinaryValue, SymbolType.MultistateValue };
-    private static readonly SymbolType[] PrimitiveValueTypes = { SymbolType.PrimitiveAnalog, SymbolType.PrimitiveBinary, SymbolType.PrimitiveMultistate };
+    private static readonly SymbolType[] MiniFramePrimitiveValueTypes = { SymbolType.PrimitiveAnalog, SymbolType.PrimitiveBinary, SymbolType.PrimitiveMultistate };
     private static readonly SymbolType[] MiniFrameOperationalTypes = { SymbolType.AnalogOperationalValue, SymbolType.BinaryOperationalValue, SymbolType.MultistateOperationalValue };
+    private static readonly SymbolType[] MiniFrameEventTypes = { SymbolType.Notification, SymbolType.Event };
     #endregion
 
 
@@ -291,8 +297,9 @@ internal static partial class Ext
     public static bool IsInputType(this SymbolType source) => MiniFrameInputTypes.Contains(source);
     public static bool IsOutputType(this SymbolType source) => MiniFrameOutputTypes.Contains(source);
     public static bool IsMiniFrameValueType(this SymbolType source) => MiniFrameValueTypes.Contains(source);
-    public static bool IsPrimitiveValueType(this SymbolType source) => PrimitiveValueTypes.Contains(source);
+    public static bool IsPrimitiveValueType(this SymbolType source) => MiniFramePrimitiveValueTypes.Contains(source);
     public static bool IsOperationalType(this SymbolType source) => MiniFrameOperationalTypes.Contains(source);
+    public static bool IsEventType(this SymbolType source) => MiniFrameEventTypes.Contains(source);
     public static bool IsMiniFrameSymbolType(this SymbolType source) => Tc3_MiniFrame.SymbolTypes.ContainsKey(source);
     public static string GetTypeName(this SymbolType source)
     {

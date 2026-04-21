@@ -77,7 +77,23 @@ VAR
 	{attribute 'PlcHa.Mapping' := 'sensor.shelly_cumulated_active_power_average:trending_towards'}
 	avDspNative2 : FB_Mfr_AVal;
 END_VAR
-]]></Declaration>
+VAR
+	// Notifications:
+	{attribute 'PlcHa.Mapping'}
+	fbWelcome : FB_Mfr_Notification := (
+		sMessage := 'Nice to meet you!',
+		sTitle := 'Welcome',
+		eSeverity := E_Mfr_NotifySeverity.eInfo
+	);
+	
+	// Events:
+	{attribute 'PlcHa.Mapping'}
+	fbPrsFault : FB_Mfr_Event := (
+		sMessage := 'Pressure fault active.',
+		sTitle := 'Fault',
+		eSeverity := E_Mfr_NotifySeverity.eError
+	);
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[ai();
 ao();
@@ -103,7 +119,9 @@ mvDspNative();
 mvSpNative();
 
 avDspNative2();
-]]></ST>
+
+fbWelcome();
+fbPrsFault();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>
