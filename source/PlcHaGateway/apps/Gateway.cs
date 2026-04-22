@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using NetDaemon.Client;
 using NetDaemon.Extensions.MqttEntityManager;
 using NetDaemon.HassModel.Entities;
 using TwinCAT.Ads.SumCommand;
@@ -22,7 +23,7 @@ namespace HassModel;
 [NetDaemonApp]
 public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
 {
-    public PlcHaGatewayApp(IConfiguration config, ILogger<PlcHaGatewayApp> logger, IHaContext context, IScheduler scheduler, IMqttEntityManager entityManager)
+    public PlcHaGatewayApp(IConfiguration config, ILogger<PlcHaGatewayApp> logger, IHaContext context, IScheduler scheduler, IMqttEntityManager entityManager, IHomeAssistantRunner runner)
     {
         new Common(logger);
 
@@ -31,6 +32,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         this.ha = context;
         this.scheduler = scheduler;
         this.entityManager = entityManager;
+        this.runner = runner;
     }
 
 
@@ -114,7 +116,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         {
             try
             {
-                await evt.InitAsync(ha, cancellationToken).ConfigureAwait(false);
+                await evt.InitAsync(ha, runner, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -195,6 +197,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
     private IHaContext ha;
     private IScheduler scheduler;
     private IMqttEntityManager entityManager;
+    private IHomeAssistantRunner runner;
 }
 
 internal static partial class Ext

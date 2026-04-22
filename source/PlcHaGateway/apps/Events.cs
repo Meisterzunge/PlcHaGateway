@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using NetDaemon.Client;
+using NetDaemon.Client.HomeAssistant.Model;
 using TwinCAT.Ads;
 using TwinCAT.Ads.SumCommand;
 using TwinCAT.Ads.TypeSystem;
@@ -24,7 +27,7 @@ public interface IEventBinding
     VirtualDevice? Owner { get; }
     SymbolType SymbolType { get; }
 
-    Task InitAsync(IHaContext ha, CancellationToken cancel);
+    Task InitAsync(IHaContext ha, IHomeAssistantRunner runner, CancellationToken cancel);
     Task ProcessAsync(IHaContext ha, CancellationToken cancel);
 }
 
@@ -81,7 +84,7 @@ internal abstract class EventBindingBase : IEventBinding
     protected ISymbol Symbol { get; }
     #endregion
 
-    public virtual Task InitAsync(IHaContext ha, CancellationToken cancel) => Task.CompletedTask;
+    public virtual Task InitAsync(IHaContext ha, IHomeAssistantRunner runner, CancellationToken cancel) => Task.CompletedTask;
     public abstract Task ProcessAsync(IHaContext ha, CancellationToken cancel);
 
     protected async Task<bool> ReadBusyAsync(CancellationToken cancel)
@@ -181,7 +184,11 @@ internal sealed class NotificationBinding : EventBindingBase
 /// <summary>
 /// Event binding for <c>FB_Mfr_Event</c> — persistent, deduplicating.<br/>
 /// <c>bActive TRUE</c> creates/refreshes a notification keyed by entity path; <c>bActive FALSE</c> dismisses it.<br/>
-/// <c>bAckd</c> on the PLC FB is set when the user manually dismisses the notification in the HA sidebar.
+/// <c>bAckd</c> on the PLC FB is set when the user manually dismisses the notification in the HA sidebar.<br/>
+/// <br/>
+/// Dismiss detection uses polling via <c>persistent_notification/get</c> WebSocket command because HA's
+/// persistent_notification integration communicates through an internal dispatcher signal — no
+/// <c>state_changed</c> bus event is ever fired when the user clicks Dismiss.
 /// </summary>
 internal sealed class EventBinding : EventBindingBase
 {
@@ -191,6 +198,11 @@ internal sealed class EventBinding : EventBindingBase
     private readonly SumSymbolWrite ackdWriteCmd;
     private bool lastBusy;
     private volatile bool pendingAck;
+
+    private IHomeAssistantRunner? runner;
+    private bool notificationShown;
+    private DateTime lastDismissCheck = DateTime.MinValue;
+    private static readonly TimeSpan DismissCheckInterval = TimeSpan.FromSeconds(3);
 
     public EventBinding(ISymbol symbol, VirtualDevice? owner) : base(symbol, owner)
     {
@@ -205,18 +217,9 @@ internal sealed class EventBinding : EventBindingBase
         this.ackdWriteCmd   = new SumSymbolWrite(connection, new[] { bAckdSymbol }.ToList());
     }
 
-    public override async Task InitAsync(IHaContext ha, CancellationToken cancel)
+    public override async Task InitAsync(IHaContext ha, IHomeAssistantRunner runner, CancellationToken cancel)
     {
-        // Subscribe to user-dismiss: HA fires state_changed with new_state=null when notification is dismissed.
-        ha.StateAllChanges()
-            .Where(sc =>
-                sc.Entity.EntityId.Equals($"persistent_notification.{EntityId}", StringComparison.OrdinalIgnoreCase)
-                && sc.New is null)
-            .Subscribe(_ =>
-            {
-                LogEvent.Hass.LogInformation("Persistent notification '{0}' dismissed by user.", EntityId);
-                pendingAck = true;
-            });
+        this.runner = runner;
 
         // Startup sync: re-align HA sidebar with current PLC state (handles gateway restarts).
         try
@@ -227,10 +230,9 @@ internal sealed class EventBinding : EventBindingBase
             var title    = results[2].Succeeded ? (string)results[2].Value! : string.Empty;
             var severity = results[3].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[3].Value!) : E_Mfr_NotifySeverity.Info;
 
-            var haActive = ha.GetAllEntities().Any(e =>
-                e.EntityId.Equals($"persistent_notification.{EntityId}", StringComparison.OrdinalIgnoreCase));
+            notificationShown = await IsNotificationActiveAsync(cancel).ConfigureAwait(false);
 
-            if (active && !haActive)
+            if (active && !notificationShown)
             {
                 ha.CallService("persistent_notification", "create", null, new
                 {
@@ -238,11 +240,13 @@ internal sealed class EventBinding : EventBindingBase
                     title = FormatTitle(severity, title),
                     notification_id = EntityId
                 });
+                notificationShown = true;
                 LogEvent.Gw.LogInformation("Restored notification '{0}' on startup.", EntityId);
             }
-            else if (!active && haActive)
+            else if (!active && notificationShown)
             {
                 ha.CallService("persistent_notification", "dismiss", null, new { notification_id = EntityId });
+                notificationShown = false;
                 LogEvent.Gw.LogInformation("Dismissed stale notification '{0}' on startup.", EntityId);
             }
         }
@@ -254,12 +258,36 @@ internal sealed class EventBinding : EventBindingBase
 
     public override async Task ProcessAsync(IHaContext ha, CancellationToken cancel)
     {
-        // Forward user-dismiss from HA back to PLC (bAckd := TRUE):
+        // Poll HA every DismissCheckInterval while we believe the notification is shown.
+        if (notificationShown && DateTime.UtcNow - lastDismissCheck >= DismissCheckInterval)
+        {
+            lastDismissCheck = DateTime.UtcNow;
+            try
+            {
+                var stillActive = await IsNotificationActiveAsync(cancel).ConfigureAwait(false);
+                if (!stillActive)
+                {
+                    LogEvent.Hass.LogInformation("Persistent notification '{0}' dismissed by user.", EntityId);
+                    notificationShown = false;
+                    pendingAck = true;
+                }
+                else
+                {
+                    LogEvent.Hass.LogDebug("Persistent notification '{0}' still active in HA.", EntityId);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogEvent.Gw.LogDebug(ex, "Failed to poll dismiss state for '{0}' — will retry.", EntityId);
+            }
+        }
+
+        // Forward user-dismiss ACK to PLC (bAckd := TRUE):
         if (pendingAck)
         {
             pendingAck = false;
+            LogEvent.Gw.LogDebug("Sending dismiss ACK to PLC for event '{0}'.", EntityId);
             await ackdWriteCmd.WriteAsync(new object[] { true }, cancel).ConfigureAwait(false);
-            LogEvent.Gw.LogTrace("Sent dismiss ACK to PLC for event '{0}'.", EntityId);
         }
 
         var busy = await ReadBusyAsync(cancel).ConfigureAwait(false);
@@ -274,17 +302,23 @@ internal sealed class EventBinding : EventBindingBase
                 var title    = results[2].Succeeded ? (string)results[2].Value! : string.Empty;
                 var severity = results[3].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[3].Value!) : E_Mfr_NotifySeverity.Info;
 
-                LogEvent.Gw.LogInformation("Processing event '{0}' (active={1}).", EntityId, active);
+                LogEvent.Gw.LogTrace("Processing event '{0}' (active={1}).", EntityId, active);
 
                 if (active)
+                {
                     ha.CallService("persistent_notification", "create", null, new
                     {
                         message,
                         title = FormatTitle(severity, title),
                         notification_id = EntityId
                     });
+                    notificationShown = true;
+                }
                 else
+                {
                     ha.CallService("persistent_notification", "dismiss", null, new { notification_id = EntityId });
+                    notificationShown = false;
+                }
             }
             catch (Exception ex)
             {
@@ -297,5 +331,37 @@ internal sealed class EventBinding : EventBindingBase
         }
 
         lastBusy = busy;
+    }
+
+    /// <summary>
+    /// Queries HA via WebSocket <c>persistent_notification/get</c> to check whether our notification
+    /// is still listed. This is the only reliable mechanism because HA's persistent_notification
+    /// integration never fires a bus event when the user clicks Dismiss in the sidebar.
+    /// </summary>
+    private async Task<bool> IsNotificationActiveAsync(CancellationToken cancel)
+    {
+        var conn = runner?.CurrentConnection;
+        if (conn is null)
+            return false;
+
+        var list = await conn
+            .SendCommandAndReturnResponseAsync<GetNotificationsCommand, List<HassNotificationItem>>(
+                new GetNotificationsCommand(), cancel)
+            .ConfigureAwait(false);
+
+        return list?.Any(n => string.Equals(n.NotificationId, EntityId, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    // CommandMessage is a record (Type is an init property on HassMessageBase).
+    // Set Type in the constructor body — do NOT pass it as a primary-constructor argument.
+    private sealed record GetNotificationsCommand : CommandMessage
+    {
+        public GetNotificationsCommand() { Type = "persistent_notification/get"; }
+    }
+
+    private sealed class HassNotificationItem
+    {
+        [JsonPropertyName("notification_id")]
+        public string? NotificationId { get; init; }
     }
 }
