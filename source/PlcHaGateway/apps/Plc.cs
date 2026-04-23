@@ -392,19 +392,18 @@ internal static partial class Ext
     private static readonly Dictionary<ISymbol, IMapping> associatedPlcMappings = new();
 
     public static Dictionary<uint, string> GetFields(this IEnumType source) => source.EnumValues
-        .Select(v => (Field: v, Name: GetFieldNameIfValid(v)))
-        .Where(f => f.Name is not null)
-        .ToDictionary(v => Convert.ToUInt32(v.Field.Value), v => v.Name!);
-    private static string? GetFieldNameIfValid(this IEnumValue source)
+        .OfValidFields()
+        .ToDictionary(v => Convert.ToUInt32(v.Value), v => v.Name.TrimStart('e'));
+    private static IEnumerable<IEnumValue> OfValidFields(this IEnumerable<IEnumValue> source)
     {
-        // Remove prefixes:
-        var fieldName = source.Name;
-        if (fieldName.FirstOrDefault() == 'e')
-            fieldName = fieldName.Substring(1);
-
-        if (char.IsUpper(fieldName.FirstOrDefault()))
-            return (fieldName);
+        var prefixed = source
+            .Where(f => f.Name.StartsWith("e"))
+            .ToArray();
+        if (prefixed.IsEmpty())
+            // No prefixed enum values, consider all fields as valid:
+            return (source);
         else
-            return (null);
+            // Prefixed enum values exist, consider only prefixed fields as valid:
+            return (prefixed);
     }
 }
