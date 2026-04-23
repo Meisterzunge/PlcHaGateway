@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using NetDaemon.Extensions.MqttEntityManager;
@@ -124,6 +125,13 @@ internal static partial class Ext
                             var msSource = (MultistateMapping)source;
                             var enumValues = msSource.Options.Values.ToArray();
                             addCfg.Add(attrib.MqttAttribute, enumValues);
+                            break;
+                        case PlcMappingParameter.Minimum:
+                        case PlcMappingParameter.Maximum:
+                        case PlcMappingParameter.Step:
+                            if (!double.TryParse(attrib.Attribute.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var numberValue))
+                                throw new FormatException($"Failed to parse numeric mapping parameter '{attrib.Parameter}' with value '{attrib.Attribute.Value}' for symbol '{source.Symbol.InstancePath}'.");
+                            addCfg.Add(attrib.MqttAttribute, numberValue);
                             break;
                         default:
                             addCfg.Add(attrib.MqttAttribute, attrib.Attribute.Value);
