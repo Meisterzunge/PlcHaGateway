@@ -318,8 +318,18 @@ internal static partial class Ext
     public static string ToPlcType(this string source) => $"{Tc3_MiniFrame.LibraryName}.{source}";
 
     public static bool IsMiniFrameType(this ISymbol source) => (source.DataType is not null) && IsMiniFrameType(source.DataType);
-    public static bool IsMiniFrameType(this IDataType? source) => source?.Name.StartsWith(Tc3_MiniFrame.LibraryName) == true;
-
+    public static bool IsMiniFrameType(this IDataType? source)
+    {
+        if (!string.IsNullOrWhiteSpace(source?.Name))
+        {
+            var parts = source.Name.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Contains(Tc3_MiniFrame.LibraryName, StringComparer.InvariantCultureIgnoreCase))
+                return (true);
+            if (parts.Last().StartsWith($"{Tc3_MiniFrame.FunctionBlockPrefix}_", StringComparison.InvariantCultureIgnoreCase))
+                return (true);
+        }
+        return (false);
+    }
     public static MappingParameterAttribute GetAttribute(this PlcMappingParameter source) => source.GetCustomAttribute<MappingParameterAttribute, PlcMappingParameter>();
 
     internal static IEnumerable<ISymbol> GetTargetSymbols(this IEnumerable<IMapping> source, AdsCommandId command) => source.SelectMany(m => GetTargetSymbols(m, command));

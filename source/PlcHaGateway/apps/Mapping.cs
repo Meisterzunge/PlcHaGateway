@@ -693,25 +693,13 @@ internal static partial class Ext
             return (false);
 
         var parts = source.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        string typeName;
-
-        switch (parts.Length)
-        {
-            case 1:
-                typeName = parts[0];
-                if (!typeName.StartsWith($"{Tc3_MiniFrame.FunctionBlockPrefix}_", StringComparison.InvariantCultureIgnoreCase))
-                    return (false);
-                break;
-
-            case 2:
-                if (!parts[0].Equals(Tc3_MiniFrame.LibraryName, StringComparison.InvariantCultureIgnoreCase))
-                    return (false);
-                typeName = parts[1];
-                break;
-
-            default:
-                return (false);
-        }
+        if (parts.Length == 0)
+            return (false);
+        var typeName = parts.Last();
+        if (!typeName.StartsWith($"{Tc3_MiniFrame.FunctionBlockPrefix}_", StringComparison.InvariantCultureIgnoreCase))
+            return (false);
+        if ((parts.Length > 1) && !parts.Any(p => p.Equals(Tc3_MiniFrame.LibraryName, StringComparison.InvariantCultureIgnoreCase)))
+            return (false);
 
         return (Tc3_MiniFrame.SymbolTypes.TryGetKeyOf(
             i => i.TypeName.Equals(typeName, StringComparison.InvariantCultureIgnoreCase),
