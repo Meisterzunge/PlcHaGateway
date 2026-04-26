@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_WeatherNow" Id="{f1710341-b251-4687-a7f7-6647d33a25be}" SpecialFunc="None">
+    <Declaration><![CDATA[/// Current weather extension (humidity, pressure, visibility, cloud coverage).
+FUNCTION_BLOCK FB_Mfr_WeatherNow EXTENDS FB_Mfr_Weather IMPLEMENTS I_Mfr_WeatherNow
+VAR_OUTPUT
+	fHmdt : REAL; // Relative humidity [%]
+	fPres : REAL; // Atmospheric pressure [hPa]
+	fVis : REAL; // Visibility [km]
+	fCld : REAL; // Cloud coverage [%]
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+]]></ST>
+    </Implementation>
+    <Property Name="CloudCoverage" Id="{ad85fb10-a31a-4f3d-98af-78ab99894a85}">
+      <Declaration><![CDATA[PROPERTY CloudCoverage : REAL]]></Declaration>
+      <Get Name="Get" Id="{f7a2c215-c8f5-42cd-bba1-3ee43d8f2f4b}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CloudCoverage := fCld;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Humidity" Id="{a75024ea-83d5-4ac6-8f7a-a9ae7c611afd}">
+      <Declaration><![CDATA[PROPERTY Humidity : REAL]]></Declaration>
+      <Get Name="Get" Id="{143d8014-d8c5-48c7-bcf1-eafd4b51693a}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Humidity := fHmdt;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Pressure" Id="{c747b2ed-d5a1-4549-8e76-bc5df3ad4155}">
+      <Declaration><![CDATA[PROPERTY Pressure : REAL]]></Declaration>
+      <Get Name="Get" Id="{3e820d0e-aab4-4fac-afa5-b4d967e31373}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Pressure := fPres;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Visibility" Id="{34afcdef-c567-4eb8-8350-a0697dd7afb4}">
+      <Declaration><![CDATA[PROPERTY Visibility : REAL]]></Declaration>
+      <Get Name="Get" Id="{2efb6d1c-c086-4835-8b43-551735d76454}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Visibility := fVis;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

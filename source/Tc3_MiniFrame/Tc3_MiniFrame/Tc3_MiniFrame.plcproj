@@ -82,6 +82,30 @@
     <Compile Include="Objects\FB_Mfr_MVal.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Services\Weather\E_Mfr_WndBrng.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Services\Weather\E_Mfr_WthCond.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Services\Weather\FB_Mfr_WeatherNow.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Services\Weather\FB_Mfr_Weather.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Services\Weather\FB_Mfr_WeatherForecast.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Services\Weather\F_BA_IsRaining.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Services\Weather\I_Mfr_WeatherForecast.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Services\Weather\I_Mfr_WeatherNow.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Universal\E_Mfr_MeasuringElement.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -89,7 +113,9 @@
   <ItemGroup>
     <Folder Include="Global" />
     <Folder Include="Events" />
+    <Folder Include="Services" />
     <Folder Include="Objects" />
+    <Folder Include="Services\Weather" />
     <Folder Include="Universal" />
   </ItemGroup>
   <ItemGroup>

@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_Mfr_WthCond" Id="{14f5fbb5-1be0-4c0e-a9ee-49e8571984c1}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{warning disable C0125}
+TYPE E_Mfr_WthCond :
+(
+	Invalid := 0,
+
+	eClearNight := 1,		// "clear-night"
+	eCloudy := 2,			// "cloudy"
+	eExceptional := 3,		// "exceptional"
+	eFog := 4,				// "fog"
+	eHail := 5,			    // "hail"
+	eLightning := 6,		// "lightning"
+	eLightningRainy := 7,	// "lightning-rainy"
+	ePartlyCloudy := 8,		// "partlycloudy"
+	ePouring := 9,			// "pouring"
+	eRainy := 10,			// "rainy"
+	eSnowy := 11,			// "snowy"
+	eSnowyRainy := 12,		// "snowy-rainy"
+	eSunny := 13,			// "sunny"
+	eWindy := 14,			// "windy"
+	eWindyVariant := 15		// "windy-variant"
+) UDINT;
+END_TYPE
+{warning restore C0125}
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

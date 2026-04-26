@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -64,7 +64,9 @@ public enum PlcMappingParameter
 
     /// <see href="https://www.home-assistant.io/integrations/select.mqtt/#options">
     [MappingParameter("plcha.enum", "options")]
-    Enum
+    Enum,
+    [MappingParameter("plcha.weather")]
+    WeatherMode
 }
 
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
@@ -116,6 +118,11 @@ public enum SymbolType
     MultistateOperationalValue,
     [FunctionBlock("View")]
     View,
+
+    [FunctionBlock("WeatherNow")]
+    CurrentWeather,
+    [FunctionBlock("WeatherForecast")]
+    WeatherForecast,
 
     [FunctionBlock("Notification")]
     Notification,
@@ -272,6 +279,7 @@ internal static partial class Ext
     private static readonly SymbolType[] MiniFramePrimitiveValueTypes = { SymbolType.PrimitiveAnalog, SymbolType.PrimitiveBinary, SymbolType.PrimitiveMultistate };
     private static readonly SymbolType[] MiniFrameOperationalTypes = { SymbolType.AnalogOperationalValue, SymbolType.BinaryOperationalValue, SymbolType.MultistateOperationalValue };
     private static readonly SymbolType[] MiniFrameEventTypes = { SymbolType.Notification, SymbolType.Event };
+    private static readonly SymbolType[] WeatherTypes = { SymbolType.CurrentWeather, SymbolType.WeatherForecast };
     #endregion
 
 
@@ -300,6 +308,7 @@ internal static partial class Ext
     public static bool IsPrimitiveValueType(this SymbolType source) => MiniFramePrimitiveValueTypes.Contains(source);
     public static bool IsOperationalType(this SymbolType source) => MiniFrameOperationalTypes.Contains(source);
     public static bool IsEventType(this SymbolType source) => MiniFrameEventTypes.Contains(source);
+    public static bool IsWeatherType(this SymbolType source) => WeatherTypes.Contains(source);
     public static bool IsMiniFrameSymbolType(this SymbolType source) => Tc3_MiniFrame.SymbolTypes.ContainsKey(source);
     public static string GetTypeName(this SymbolType source)
     {

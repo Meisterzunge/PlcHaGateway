@@ -68,6 +68,11 @@ public class VirtualDevice : IEnumerable<ISymbol>
             .WhereMapped()
             .SelectWhereNotNull(s => EventBindingFactory.TryCreate(s, this))
             .ToArray();
+        this.WeatherBindings = symbol.SubSymbols
+            .Flatten()
+            .WhereMapped()
+            .SelectWhereNotNull(s => WeatherBindingFactory.TryCreate(s, this))
+            .ToArray();
     }
 
 
@@ -75,6 +80,7 @@ public class VirtualDevice : IEnumerable<ISymbol>
     public ISymbol Symbol { get; }
     public IMapping[] Mappings { get; }
     public IEventBinding[] Events { get; }
+    public IWeatherBinding[] WeatherBindings { get; }
     #endregion
     #region Properties
     public string Identifier { get; }
@@ -403,6 +409,8 @@ internal sealed class MappingFactory
                     return (null); // Skip (Not required as mapping target).
                 else if (fb.IsEventType())
                     return (null); // Skip (Handled as event bindings, not IMapping).
+                else if (fb.IsWeatherType())
+                    return (null); // Skip (Handled as weather bindings, not IMapping).
                 else if (MappingInfo.TryGetValue(fb, out var mapping))
                     return ((IMapping)Activator.CreateInstance(mapping.Type, [mapping.Info, symbol, device])!);
                 else

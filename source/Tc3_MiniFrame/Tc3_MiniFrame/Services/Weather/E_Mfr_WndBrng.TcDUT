@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="E_Mfr_WndBrng" Id="{d4cf795b-f1de-47f8-95a6-c7ec06be7f5b}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{warning disable C0125}
+TYPE E_Mfr_WndBrng :
+(
+	Invalid := 0,
+
+	eN := 1,		// 0 degree center (337.5..22.5)
+	eNNE := 2,		// 22.5 degree center
+	eNE := 3,		// 45 degree center
+	eENE := 4,		// 67.5 degree center
+	eE := 5,		// 90 degree center
+	eESE := 6,		// 112.5 degree center
+	eSE := 7,		// 135 degree center
+	eSSE := 8,		// 157.5 degree center
+	eS := 9,		// 180 degree center
+	eSSW := 10,		// 202.5 degree center
+	eSW := 11,		// 225 degree center
+	eWSW := 12,		// 247.5 degree center
+	eW := 13,		// 270 degree center
+	eWNW := 14,		// 292.5 degree center
+	eNW := 15,		// 315 degree center
+	eNNW := 16		// 337.5 degree center
+) UDINT;
+END_TYPE
+{warning restore C0125}
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

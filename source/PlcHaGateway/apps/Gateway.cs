@@ -47,6 +47,8 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         .Concat(SymbolMappings);
     public IEnumerable<IEventBinding> Events => DeviceMappings
         .SelectMany(d => d.Events);
+    public IEnumerable<IWeatherBinding> WeatherBindings => DeviceMappings
+        .SelectMany(d => d.WeatherBindings);
     #endregion
 
 
@@ -79,6 +81,7 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
                 LogEvent.Gw.LogInformation($"Created {DeviceMappings.Count} virtual device(s).");
                 LogEvent.Gw.LogInformation($"Created {totalMappings} mapping(s) total.");
                 LogEvent.Gw.LogInformation($"Created {Events.Count()} event binding(s).");
+                LogEvent.Gw.LogInformation($"Created {WeatherBindings.Count()} weather binding(s).");
             }
         }
         catch (Exception ex)
@@ -125,6 +128,10 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         }
 
         scheduler.ScheduleAsync(CyclicUpdateMappingsAsync);
+
+        // Weather poll loop — independent from the ADS cyclic update.
+        if (WeatherBindings.Any())
+            scheduler.ScheduleAsync(WeatherPollAsync);
     }
     public void Dispose() => plc.Dispose();
     #endregion
@@ -185,6 +192,24 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         // Schedule next update:
         var delay = (config.GetValue<double>("CyclicUpdate") * updateFactor);
         scheduler.ScheduleAsync(TimeSpan.FromSeconds(delay), CyclicUpdateMappingsAsync);
+    }
+    private async Task WeatherPollAsync(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        LogEvent.Gw.LogTrace("Running weather poll for {0} binding(s).", WeatherBindings.Count());
+        foreach (var binding in WeatherBindings)
+        {
+            try
+            {
+                await binding.UpdateAsync(ha, runner, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                LogEvent.Gw.LogError(ex, "Unhandled error in weather poll for '{0}'.", binding.EntityId);
+            }
+        }
+
+        var interval = TimeSpan.FromSeconds(config.GetValue<double>("WeatherPollInterval", 900.0));
+        scheduler.ScheduleAsync(interval, WeatherPollAsync);
     }
     #endregion
 

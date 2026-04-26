@@ -29,6 +29,39 @@ Apply these `{attribute}` pragmas to mapped TwinCAT symbol declarations. Support
 | `PlcHa.Max` | No | `100` | Maximum for `number` entities. |
 | `PlcHa.Icon` | No | `mdi:thermometer` | MDI icon. |
 | `PlcHa.Enum` | Yes (select) | `E_OffOnTest` | TwinCAT enum type name for `select` / multistate entities. |
+| `PlcHa.Weather` | Yes (weather FBs) | `now`, `2h`, `12h`, `1d`, `3d` | Weather mode selector for `FB_Mfr_WeatherNow` / `FB_Mfr_WeatherForecast`. |
+
+### Weather mapping (`PlcHa.Weather`)
+
+Weather mappings are service-backed native bindings. `PlcHa.Mapping` must point to a Home Assistant weather entity (for example `weather.home`).
+
+Mode syntax:
+
+- `now` -> current weather values (state + attributes) for `FB_Mfr_WeatherNow`
+- `Nh` -> hourly forecast near now + N hours for `FB_Mfr_WeatherForecast`
+- `Nd` -> daily forecast near now + N days for `FB_Mfr_WeatherForecast`
+
+Examples:
+
+```st
+{attribute 'PlcHa.Mapping' := 'weather.home'}
+{attribute 'PlcHa.Weather' := 'now'}
+WthNow : FB_Mfr_WeatherNow;
+
+{attribute 'PlcHa.Mapping' := 'weather.home'}
+{attribute 'PlcHa.Weather' := '2h'}
+Wth2h : FB_Mfr_WeatherForecast;
+
+{attribute 'PlcHa.Mapping' := 'weather.home'}
+{attribute 'PlcHa.Weather' := '3d'}
+Wth3d : FB_Mfr_WeatherForecast;
+```
+
+Validation and fault behavior:
+
+- Invalid `PlcHa.Weather` values are rejected at gateway initialization and logged as binding-creation errors.
+- Runtime fetch/parse failures are logged and trigger the weather FB's `FltNtf` (`FB_Mfr_Notification`) once per failure edge.
+- Forecast requests use Home Assistant `weather.get_forecasts`; integrations that do not support the selected forecast type return runtime errors.
 
 ### Parameter overrides in virtual devices
 
@@ -159,6 +192,8 @@ END_VAR
 | `FB_Mfr_BO` | `switch` | PLC ↔ HA | Physical binary output |
 | `FB_Mfr_BValOp` | `switch` | PLC ↔ HA | Binary operational value |
 | `FB_Mfr_MValOp` | `select` | PLC ↔ HA | Multistate operational value. Requires `PlcHa.Enum`. |
+| `FB_Mfr_WeatherNow` | native weather binding | HA → PLC | Service-backed current weather mapping (`PlcHa.Weather := 'now'`). |
+| `FB_Mfr_WeatherForecast` | native weather binding | HA → PLC | Service-backed forecast mapping (`PlcHa.Weather := 'Nh'` / `Nd`). |
 | `FB_Mfr_View` | — | — | Virtual-device grouping root |
 | `FB_Mfr_Notification` | `persistent_notification` | PLC → HA | Fire-and-forget; each trigger adds a new sidebar entry |
 | `FB_Mfr_Event` | `persistent_notification` | PLC ↔ HA | Persistent; deduplicates by entity path; user-dismiss writes back to PLC |

@@ -42,7 +42,8 @@ END_VAR
 //test_av();
 test_number();
 test_toggle();
-test_sel1();]]></ST>
+test_sel1();
+]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

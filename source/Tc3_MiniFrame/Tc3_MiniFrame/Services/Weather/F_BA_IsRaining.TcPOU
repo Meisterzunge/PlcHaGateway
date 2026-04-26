@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_BA_IsRaining" Id="{b2606525-af88-41b9-8348-07ec6a994da4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_BA_IsRaining : BOOL
+VAR_INPUT
+	eCondition : E_Mfr_WthCond;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE (eCondition) OF
+	E_Mfr_WthCond.eHail,
+	E_Mfr_WthCond.eLightningRainy,
+	E_Mfr_WthCond.ePouring,
+	E_Mfr_WthCond.eRainy,
+	E_Mfr_WthCond.eSnowyRainy:
+		F_BA_IsRaining := TRUE;
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

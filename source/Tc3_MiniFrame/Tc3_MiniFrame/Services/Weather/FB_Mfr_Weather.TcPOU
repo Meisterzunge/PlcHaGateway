@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_Weather" Id="{4f9e67b4-b6d5-49fa-80c1-84783b53d2d4}" SpecialFunc="None">
+    <Declaration><![CDATA[/// Abstract base for weather data mapped by PlcHaGateway.
+FUNCTION_BLOCK ABSTRACT FB_Mfr_Weather EXTENDS FB_Mfr
+VAR_OUTPUT
+	bValid : BOOL; // TRUE when gateway has written valid weather data
+
+	fTemp : REAL; // Temperature [°C]
+	eWthCond : E_Mfr_WthCond; // Weather condition code
+	fWndSpd : REAL; // Wind speed [km/h]
+	eWndBrng : E_Mfr_WndBrng; // Wind bearing (16 cardinal directions)
+	fPrec : REAL; // Precipitation [mm]
+END_VAR
+VAR
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Weather data fault'}
+	FltNtf : FB_Mfr_Notification;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+FltNtf();
+]]></ST>
+    </Implementation>
+    <Property Name="Precipitation" Id="{28ad921b-4142-463e-a732-337f75f5de6a}">
+      <Declaration><![CDATA[PROPERTY Precipitation : REAL]]></Declaration>
+      <Get Name="Get" Id="{6b84c465-598f-4bce-9177-69165618610e}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Precipitation := fPrec;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Temperature" Id="{a819cc7d-bbf5-482d-a3b0-48c32bb65bac}">
+      <Declaration><![CDATA[PROPERTY Temperature : REAL]]></Declaration>
+      <Get Name="Get" Id="{a861376e-fe8f-4179-a990-72df305504e2}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Temperature := fTemp;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Valid" Id="{98ff0c07-d0b2-4f71-959d-bf41fadf0c34}">
+      <Declaration><![CDATA[PROPERTY Valid : BOOL]]></Declaration>
+      <Get Name="Get" Id="{2d6da97b-11a9-4940-a353-59fd75c8436f}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Valid := bValid;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="WeatherCondition" Id="{40a8fea8-5768-473a-b15e-80344b62bf36}">
+      <Declaration><![CDATA[PROPERTY WeatherCondition : E_Mfr_WthCond]]></Declaration>
+      <Get Name="Get" Id="{cba550a2-b270-4e9d-b351-1be79cabb14d}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[WeatherCondition := eWthCond;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="WindBearing" Id="{29fd207c-f89d-43d7-b655-90c80eca0a27}">
+      <Declaration><![CDATA[PROPERTY WindBearing : E_Mfr_WndBrng]]></Declaration>
+      <Get Name="Get" Id="{6aafb0ae-dff1-4dab-81ff-b6b9b0040ecd}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[WindBearing := eWndBrng;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="WindSpeed" Id="{312a154b-7611-44bf-b94a-50f817bf0616}">
+      <Declaration><![CDATA[PROPERTY WindSpeed : REAL]]></Declaration>
+      <Get Name="Get" Id="{5ded20fa-d249-49e4-9fae-d6d5d57505f0}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[WindSpeed := fWndSpd;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

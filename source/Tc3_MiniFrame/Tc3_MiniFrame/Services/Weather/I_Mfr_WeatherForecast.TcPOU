@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_Mfr_WeatherForecast" Id="{13b96da8-f237-45d8-9803-ed9cccbf10e6}">
+    <Declaration><![CDATA[/// Read-only interface exposing all output variables of FB_Mfr_WeatherForecast (including base class fields).
+INTERFACE I_Mfr_WeatherForecast]]></Declaration>
+    <Property Name="IsDaytime" Id="{12cb2562-1b90-4b58-a05b-1feadf8f23e9}">
+      <Declaration><![CDATA[/// TRUE = daytime slot, FALSE = night slot.
+PROPERTY IsDaytime : BOOL]]></Declaration>
+      <Get Name="Get" Id="{0d78bfab-a886-43a3-b635-f5caef8b4fa4}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Precipitation" Id="{38f61ee2-6bb2-4b7d-b10d-6dcd3850d11f}">
+      <Declaration><![CDATA[/// Precipitation [mm].
+PROPERTY Precipitation : REAL]]></Declaration>
+      <Get Name="Get" Id="{f803face-7938-4298-bb27-e75b41c615a4}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="PrecipitationProbability" Id="{0c491581-476d-497a-90b0-ac617ab0f717}">
+      <Declaration><![CDATA[/// Precipitation probability [%].
+PROPERTY PrecipitationProbability : REAL]]></Declaration>
+      <Get Name="Get" Id="{eb85677a-0873-462a-b538-35e0c883b4b0}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Temperature" Id="{59b94f74-907c-41f7-9327-49f65e45f47f}">
+      <Declaration><![CDATA[/// Temperature [°C].
+PROPERTY Temperature : REAL]]></Declaration>
+      <Get Name="Get" Id="{899580ce-dd90-4761-8082-4c10f21a2aff}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="TemperatureLow" Id="{c50636a0-ba01-4442-83dc-f1b9fa496c3f}">
+      <Declaration><![CDATA[/// Period low temperature [°C].
+PROPERTY TemperatureLow : REAL]]></Declaration>
+      <Get Name="Get" Id="{e4b7b30c-8799-4a60-a4f0-9e5b6284293d}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Valid" Id="{f744eb6e-4efb-4467-86c7-d0871e0a0d48}">
+      <Declaration><![CDATA[/// TRUE when the gateway has written valid weather data.
+PROPERTY Valid : BOOL]]></Declaration>
+      <Get Name="Get" Id="{216ed1e3-d0ee-4132-b8f5-6c5309e11baa}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="WeatherCondition" Id="{e9c994c3-9bae-449a-8c1f-281378da9ed5}">
+      <Declaration><![CDATA[/// Weather condition code.
+PROPERTY WeatherCondition : E_Mfr_WthCond]]></Declaration>
+      <Get Name="Get" Id="{c65c7cc8-e299-47d8-a055-cb26043f3c8e}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="WindBearing" Id="{64c379a8-8adb-4e3f-b173-8e7ef833bbef}">
+      <Declaration><![CDATA[/// Wind bearing (16 cardinal directions).
+PROPERTY WindBearing : E_Mfr_WndBrng]]></Declaration>
+      <Get Name="Get" Id="{24f8103f-0e02-4fcf-bb66-97aa7ee2a4c1}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="WindSpeed" Id="{bd75b254-869e-4fc2-8939-2c14bdbca6e4}">
+      <Declaration><![CDATA[/// Wind speed [km/h].
+PROPERTY WindSpeed : REAL]]></Declaration>
+      <Get Name="Get" Id="{cddb82f3-ee92-4ad4-a8e3-385717e5c114}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>

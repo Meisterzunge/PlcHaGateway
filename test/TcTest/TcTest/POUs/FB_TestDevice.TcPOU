@@ -50,9 +50,28 @@ VAR
 	{attribute 'PlcHa.Mapping'}
 	{attribute 'PlcHa.Name' := 'Pump'}
 	pu : FB_Aggregate;
-	{attribute 'PlcHa.Mapping'}
-	{attribute 'PlcHa.Name' := 'Weather'}
-	wth : FB_Weather;
+	
+	// Sevices samples:
+	{attribute 'PlcHa.Mapping' := 'weather.forecast_home'}
+	{attribute 'PlcHa.Weather' := 'now'}
+	{attribute 'PlcHa.Name' := 'Weather now'}
+	WthNow : FB_Mfr_WeatherNow;
+	{attribute 'PlcHa.Mapping' := 'weather.forecast_home'}
+	{attribute 'PlcHa.Weather' := '2h'}
+	{attribute 'PlcHa.Name' := 'Weather +2h'}
+	Wth2h : FB_Mfr_WeatherForecast;
+	{attribute 'PlcHa.Mapping' := 'weather.forecast_home'}
+	{attribute 'PlcHa.Weather' := '12h'}
+	{attribute 'PlcHa.Name' := 'Weather +12h'}
+	Wth12h : FB_Mfr_WeatherForecast;
+	{attribute 'PlcHa.Mapping' := 'weather.forecast_home'}
+	{attribute 'PlcHa.Weather' := '1d'}
+	{attribute 'PlcHa.Name' := 'Weather +1d'}
+	Wth1d : FB_Mfr_WeatherForecast;
+	{attribute 'PlcHa.Mapping' := 'weather.forecast_home'}
+	{attribute 'PlcHa.Weather' := '3d'}
+	{attribute 'PlcHa.Name' := 'Weather +3d'}
+	Wth3d : FB_Mfr_WeatherForecast;
 END_VAR
 VAR
 	// Bind to specific entities:
@@ -109,7 +128,12 @@ mvSp();
 mvDsp(nValue:=E_OffOnTest.Auto);
 
 pu();
-wth();
+
+WthNow();
+Wth2h();
+Wth12h();
+Wth1d();
+Wth3d();
 
 avDspNative();
 avSpNative();
