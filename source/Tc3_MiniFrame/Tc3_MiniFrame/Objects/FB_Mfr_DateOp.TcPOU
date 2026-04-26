@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_DateOp" Id="{a3d19ed2-a6a2-439d-a512-1624afd61db7}" SpecialFunc="None">
+    <Declaration><![CDATA[// Date value for operation.
+FUNCTION_BLOCK FB_Mfr_DateOp EXTENDS FB_Mfr
+VAR_OUTPUT PERSISTENT
+	dtVal : DATE;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+]]></ST>
+    </Implementation>
+    <Property Name="Value" Id="{b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e}">
+      <Declaration><![CDATA[PROPERTY Value : DATE]]></Declaration>
+      <Get Name="Get" Id="{c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Value := dtVal;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[dtVal := Value;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+  </POU>
+</TcPlcObject>

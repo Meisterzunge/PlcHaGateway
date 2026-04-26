@@ -6,6 +6,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Metadata;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -161,11 +162,11 @@ public abstract class Mapping<T> : IMapping
 
     #region Properties.Management
     public MappingAttribute Info { get; }
-    public IntegrationType Backend { get; private set; }
+    public IntegrationType Backend { get; protected set; }
     public SymbolType SymbolType { get; }
     public VirtualDevice? Owner { get; }
     public ISymbol Symbol { get; }
-    public string EntityId { get; }
+    public string EntityId { get; protected set; }
     public string? AttributeKey { get; }
 
     public Modification? LastModified { get; private set; }
@@ -364,12 +365,185 @@ public class MultistateMapping : Mapping<uint>
     #endregion
 }
 
+[Mapping(EntityType.InputDatetime, SymbolType.DateOperational)]
+[Mapping(EntityType.Number, SymbolType.PrimitiveDateOperational)]
+public class DateMapping : Mapping<DateTime>
+{
+    public DateMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner)
+    {
+        if (this.SymbolType == SymbolType.DateOperational)
+        {
+            if (this.Backend == IntegrationType.Mqtt)
+                this.EntityId = $"input_datetime.{this.EntityId}";
+            this.Backend = IntegrationType.Native;
+        }
+        ValidateNativeInputDateTimeBinding();
+    }
+    internal DateMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner, SymbolType symbolType) : base(info, symbol, owner, symbolType)
+    {
+        ValidateNativeInputDateTimeBinding();
+    }
+
+    public DateTime LocalDate => (Value ?? DateTime.Now).Date;
+
+    protected override DateTime? ConvertValue(object? value)
+    {
+        switch (value)
+        {
+            case null:
+                return null;
+            case DateTime dt:
+                return dt.Date;
+            case DateOnly d:
+                return d.ToDateTime(TimeOnly.MinValue);
+            case string s when !string.IsNullOrWhiteSpace(s):
+                if (DateOnly.TryParseExact(s.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDateOnly))
+                    return parsedDateOnly.ToDateTime(TimeOnly.MinValue);
+                if (DateTime.TryParse(s.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsedDateTime))
+                    return parsedDateTime.Date;
+                return null;
+
+            default:
+                return base.ConvertValue(value);
+        }
+    }
+
+    private void ValidateNativeInputDateTimeBinding()
+    {
+        if (Backend != IntegrationType.Native)
+            throw new NotSupportedException($"Date mappings require native HA binding. Symbol '{Symbol.InstancePath}' declares backend '{Backend}'.");
+        if (!EntityId.StartsWith("input_datetime.", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Date mappings must target an 'input_datetime' entity. Got '{EntityId}'.");
+    }
+}
+
+[Mapping(EntityType.InputDatetime, SymbolType.TimeOperational)]
+[Mapping(EntityType.Number, SymbolType.PrimitiveTimeOperational)]
+public class TimeMapping : Mapping<TimeSpan>
+{
+    public TimeMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner)
+    {
+        if (this.SymbolType == SymbolType.TimeOperational)
+        {
+            if (this.Backend == IntegrationType.Mqtt)
+                this.EntityId = $"input_datetime.{this.EntityId}";
+            this.Backend = IntegrationType.Native;
+        }
+        ValidateNativeInputDateTimeBinding();
+    }
+    internal TimeMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner, SymbolType symbolType) : base(info, symbol, owner, symbolType)
+    {
+        ValidateNativeInputDateTimeBinding();
+    }
+
+    public TimeSpan LocalTime => new(Value?.Hours ?? 0, Value?.Minutes ?? 0, Value?.Seconds ?? 0);
+
+    protected override TimeSpan? ConvertValue(object? value)
+    {
+        switch (value)
+        {
+            case null:
+                return null;
+            case TimeSpan ts:
+                return new TimeSpan(ts.Hours, ts.Minutes, ts.Seconds);
+            case TimeOnly t:
+                return new TimeSpan(t.Hour, t.Minute, t.Second);
+            case DateTime dt:
+                return new TimeSpan(dt.Hour, dt.Minute, dt.Second);
+            case string s when !string.IsNullOrWhiteSpace(s):
+                if (TimeOnly.TryParseExact(s.Trim(), "HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedTimeOnly))
+                    return new TimeSpan(parsedTimeOnly.Hour, parsedTimeOnly.Minute, 0);
+                if (TimeSpan.TryParse(s.Trim(), CultureInfo.InvariantCulture, out var parsedSpan))
+                    return new TimeSpan(parsedSpan.Hours, parsedSpan.Minutes, 0);
+                return null;
+
+            default:
+                return base.ConvertValue(value);
+        }
+    }
+
+    private void ValidateNativeInputDateTimeBinding()
+    {
+        if (Backend != IntegrationType.Native)
+            throw new NotSupportedException($"Time mappings require native HA binding. Symbol '{Symbol.InstancePath}' declares backend '{Backend}'.");
+        if (!EntityId.StartsWith("input_datetime.", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Time mappings must target an 'input_datetime' entity. Got '{EntityId}'.");
+    }
+}
+
+[Mapping(EntityType.InputDatetime, SymbolType.DateTimeOperational)]
+[Mapping(EntityType.Number, SymbolType.PrimitiveDateTimeOperational)]
+public class DateTimeMapping : Mapping<DateTime>
+{
+    public DateTimeMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner = null) : base(info, symbol, owner)
+    {
+        if (this.SymbolType == SymbolType.DateTimeOperational)
+        {
+            if (this.Backend == IntegrationType.Mqtt)
+                this.EntityId = $"input_datetime.{this.EntityId}";
+            this.Backend = IntegrationType.Native;
+        }
+        ValidateNativeInputDateTimeBinding();
+    }
+    internal DateTimeMapping(MappingAttribute info, ISymbol symbol, VirtualDevice? owner, SymbolType symbolType) : base(info, symbol, owner, symbolType)
+    {
+        ValidateNativeInputDateTimeBinding();
+    }
+
+    public DateTime LocalDateTime
+    {
+        get
+        {
+            var dt = Value ?? DateTime.Now;
+            if (dt.Kind == DateTimeKind.Unspecified)
+                return dt;
+            return dt.ToLocalTime();
+        }
+    }
+
+    protected override DateTime? ConvertValue(object? value)
+    {
+        switch (value)
+        {
+            case null:
+                return null;
+            case DateTime dt:
+                return (dt.Kind == DateTimeKind.Utc) ? dt.ToLocalTime() : dt;
+            case string s when !string.IsNullOrWhiteSpace(s):
+                var txt = s.Trim();
+                var exactFormats = new[] { "yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss" };
+                if (DateTime.TryParseExact(txt, exactFormats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsedExact))
+                    return parsedExact;
+                if (DateTime.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed))
+                    return parsed;
+                return null;
+
+            default:
+                return base.ConvertValue(value);
+        }
+    }
+
+    private void ValidateNativeInputDateTimeBinding()
+    {
+        if (Backend != IntegrationType.Native)
+            throw new NotSupportedException($"DateTime mappings require native HA binding. Symbol '{Symbol.InstancePath}' declares backend '{Backend}'.");
+        if (!EntityId.StartsWith("input_datetime.", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"DateTime mappings must target an 'input_datetime' entity. Got '{EntityId}'.");
+    }
+}
+
 internal sealed class MappingFactory
 {
     #region Constants
     static readonly MappingAttribute PrimitiveAnalogInfo = new(EntityType.Sensor, SymbolType.PrimitiveAnalog);
     static readonly MappingAttribute PrimitiveBooleanInfo = new(EntityType.BinarySensor, SymbolType.PrimitiveBinary);
     static readonly MappingAttribute PrimitiveMultistateInfo = new(EntityType.Sensor, SymbolType.PrimitiveMultistate);
+    static readonly MappingAttribute PrimitiveDateOperationalInfo = new(EntityType.Number, SymbolType.PrimitiveDateOperational);
+    static readonly MappingAttribute PrimitiveTimeOperationalInfo = new(EntityType.Number, SymbolType.PrimitiveTimeOperational);
+    static readonly MappingAttribute PrimitiveDateTimeOperationalInfo = new(EntityType.Number, SymbolType.PrimitiveDateTimeOperational);
+    static readonly MappingAttribute DateOperationalInfo = new(EntityType.InputDatetime, SymbolType.DateOperational);
+    static readonly MappingAttribute TimeOperationalInfo = new(EntityType.InputDatetime, SymbolType.TimeOperational);
+    static readonly MappingAttribute DateTimeOperationalInfo = new(EntityType.InputDatetime, SymbolType.DateTimeOperational);
     static readonly IReadOnlyDictionary<Type, MappingAttribute[]> MappingTypes = UtilAssembly
         .GetDefinedTypesOf<MappingAttribute>()
         .ToDictionary(
@@ -415,6 +589,9 @@ internal sealed class MappingFactory
                     SymbolType.PrimitiveAnalog => new AnalogMapping(PrimitiveAnalogInfo, symbol, device, primitiveType),
                     SymbolType.PrimitiveBinary => new BooleanMapping(PrimitiveBooleanInfo, symbol, device, primitiveType),
                     SymbolType.PrimitiveMultistate => new MultistateMapping(PrimitiveMultistateInfo, symbol, device, primitiveType),
+                    SymbolType.PrimitiveDateOperational => new DateMapping(PrimitiveDateOperationalInfo, symbol, device, primitiveType),
+                    SymbolType.PrimitiveTimeOperational => new TimeMapping(PrimitiveTimeOperationalInfo, symbol, device, primitiveType),
+                    SymbolType.PrimitiveDateTimeOperational => new DateTimeMapping(PrimitiveDateTimeOperationalInfo, symbol, device, primitiveType),
                     _ => throw new NotSupportedException($"Primitive datatype '{symbol.TypeName}' is not supported!")
                 });
             }
@@ -454,6 +631,9 @@ internal static partial class Ext
         .Split('.')
         .First();
     private static readonly string[] PrimitiveNumericTypeNames = ["SINT", "USINT", "BYTE", "INT", "UINT", "WORD", "DINT", "UDINT", "DWORD", "LINT", "ULINT", "LWORD", "REAL", "LREAL"];
+    private static readonly string[] PrimitiveDateTypeNames = ["DATE"];
+    private static readonly string[] PrimitiveTimeTypeNames = ["TIME"];
+    private static readonly string[] PrimitiveDateTimeTypeNames = ["DT", "DATE_AND_TIME"];
     private static readonly IReadOnlyDictionary<string, PlcMappingParameter> PlcMappingAttributes = Enum
         .GetValues<PlcMappingParameter>()
         .ToDictionary(
@@ -759,6 +939,21 @@ internal static partial class Ext
         if (PrimitiveNumericTypeNames.Contains(typeName))
         {
             symbolType = SymbolType.PrimitiveAnalog;
+            return (true);
+        }
+        if (PrimitiveDateTypeNames.Contains(typeName))
+        {
+            symbolType = SymbolType.PrimitiveDateOperational;
+            return (true);
+        }
+        if (PrimitiveTimeTypeNames.Contains(typeName))
+        {
+            symbolType = SymbolType.PrimitiveTimeOperational;
+            return (true);
+        }
+        if (PrimitiveDateTimeTypeNames.Contains(typeName))
+        {
+            symbolType = SymbolType.PrimitiveDateTimeOperational;
             return (true);
         }
 

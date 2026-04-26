@@ -47,6 +47,16 @@ VAR
 	{attribute 'PlcHa.Enum' := 'E_OffOnTest'}
 	mvDsp : FB_Mfr_MVal;
 	
+	{attribute 'PlcHa.Mapping}
+	{attribute 'PlcHa.Name' := 'Some date'}
+	dSp : FB_Mfr_DateOp;
+	{attribute 'PlcHa.Mapping}
+	{attribute 'PlcHa.Name' := 'Some time'}
+	tSp : FB_Mfr_TimeOp;
+	{attribute 'PlcHa.Mapping'}
+	{attribute 'PlcHa.Name' := 'Some date and time'}
+	dtSp : FB_Mfr_DtOp;
+	
 	{attribute 'PlcHa.Mapping'}
 	{attribute 'PlcHa.Name' := 'Pump'}
 	pu : FB_Aggregate;
@@ -76,6 +86,17 @@ VAR
 	// Bind to specific entity attributes:
 	{attribute 'PlcHa.Mapping' := 'sensor.shelly_cumulated_active_power_average:trending_towards'}
 	avDspNative2 : FB_Mfr_AVal;
+	
+	// Datetime bindings (auto-created input_datetime helpers):
+	{attribute 'PlcHa.Mapping' := 'input_datetime.test_date'}
+	{attribute 'PlcHa.Name' := 'Test date'}
+	dtDate : DATE;
+	{attribute 'PlcHa.Mapping' := 'input_datetime.test_time1'}
+	{attribute 'PlcHa.Name' := 'Test time'}
+	dtTime : TIME;
+	{attribute 'PlcHa.Mapping' := 'input_datetime.test_datetime'}
+	{attribute 'PlcHa.Name' := 'Test date and time'}
+	dtDateTime : DT;
 END_VAR
 VAR
 	// Notifications:
@@ -107,6 +128,10 @@ bvDsp(bValue := TRUE);
 
 mvSp();
 mvDsp(nValue:=E_OffOnTest.Auto);
+
+dSp();
+tSp();
+dtSp();
 
 pu();
 wth();

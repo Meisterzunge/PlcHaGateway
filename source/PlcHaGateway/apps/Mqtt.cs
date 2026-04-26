@@ -47,7 +47,11 @@ public enum EntityType
     Switch,
     /// <see href="https://www.home-assistant.io/integrations/select.mqtt/">
     [EntityType("select", PlcMappingParameter.Enum)]
-    Select
+    Select,
+
+    /// <see href="https://www.home-assistant.io/integrations/input_datetime/">
+    [EntityType("input_datetime")]
+    InputDatetime
 }
 
 

@@ -114,6 +114,12 @@ public enum SymbolType
     MultistateValue,
     [FunctionBlock("MValOp", "nVal", "nVal")]
     MultistateOperationalValue,
+    [FunctionBlock("DateOp", "dtVal", "dtVal")]
+    DateOperational,
+    [FunctionBlock("TimeOp", "tVal", "tVal")]
+    TimeOperational,
+    [FunctionBlock("DtOp", "dtmVal", "dtmVal")]
+    DateTimeOperational,
     [FunctionBlock("View")]
     View,
 
@@ -124,7 +130,10 @@ public enum SymbolType
 
     PrimitiveAnalog,
     PrimitiveBinary,
-    PrimitiveMultistate
+    PrimitiveMultistate,
+    PrimitiveDateOperational,
+    PrimitiveTimeOperational,
+    PrimitiveDateTimeOperational
 }
 
 public class Tc3_MiniFrame
@@ -270,7 +279,7 @@ internal static partial class Ext
     private static readonly SymbolType[] MiniFrameOutputTypes = { SymbolType.AnalogOutput, SymbolType.BinaryOutput };
     private static readonly SymbolType[] MiniFrameValueTypes = { SymbolType.AnalogValue, SymbolType.BinaryValue, SymbolType.MultistateValue };
     private static readonly SymbolType[] MiniFramePrimitiveValueTypes = { SymbolType.PrimitiveAnalog, SymbolType.PrimitiveBinary, SymbolType.PrimitiveMultistate };
-    private static readonly SymbolType[] MiniFrameOperationalTypes = { SymbolType.AnalogOperationalValue, SymbolType.BinaryOperationalValue, SymbolType.MultistateOperationalValue };
+    private static readonly SymbolType[] MiniFrameOperationalTypes = { SymbolType.AnalogOperationalValue, SymbolType.BinaryOperationalValue, SymbolType.MultistateOperationalValue, SymbolType.PrimitiveDateOperational, SymbolType.PrimitiveTimeOperational, SymbolType.PrimitiveDateTimeOperational, SymbolType.DateOperational, SymbolType.TimeOperational, SymbolType.DateTimeOperational };
     private static readonly SymbolType[] MiniFrameEventTypes = { SymbolType.Notification, SymbolType.Event };
     #endregion
 

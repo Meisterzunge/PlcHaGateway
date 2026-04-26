@@ -1,7 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
+using NetDaemon.Client;
+using NetDaemon.Client.HomeAssistant.Model;
 using NetDaemon.HassModel.Entities;
 using TwinCAT.TypeSystem;
 using Utilities.Core;
@@ -21,6 +25,27 @@ public enum IntegrationType
 
 internal static partial class Ext
 {
+    public static async Task EnsureNativeEntityExistsAsync(this IMapping source, IHaContext ha, IHomeAssistantRunner runner, CancellationToken cancel)
+    {
+        if (!source.IsDateTimeNativeMapping())
+            return;
+        if (!source.EntityId.StartsWith("input_datetime.", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Date/time mapping '{source}' must target an input_datetime entity.");
+        if (ha.GetAllEntities().Any(e => e.EntityId.Equals(source.EntityId, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        var conn = runner.CurrentConnection;
+        if (conn is null)
+            throw new InvalidOperationException($"Cannot create native helper '{source.EntityId}' because HA connection is unavailable.");
+
+        var command = source.BuildInputDatetimeCreateCommand();
+        await conn
+            .SendCommandAndReturnResponseRawAsync(command, cancel)
+            .ConfigureAwait(false);
+
+        LogEvent.Hass.LogInformation("Created native input_datetime helper {0} for mapping {1}.", source.EntityId, source.Symbol.InstancePath);
+    }
+
     public static Task BindToNativeEntity(this IMapping source, IHaContext ha)
     {
         // Validate:
@@ -64,7 +89,22 @@ internal static partial class Ext
     /// <summary>
     /// Writes mappings to HASS.
     /// </summary>
-    public static Task WriteMappingsAsync(this IEnumerable<IMapping> source) => Task.WhenAll(source.Select(WriteMappingAsync));
+    public static Task WriteMappingsAsync(this IEnumerable<IMapping> source)
+    {
+        var mapped = source
+            .Select(m => (Mapping: m, Entity: m.TryGetAssociatedEntity()))
+            .ToArray();
+
+        foreach (var item in mapped.Where(i => i.Entity is null))
+        {
+            item.Mapping.ResetDirty();
+            LogEvent.Hass.LogWarning("Skipping native update for unbound mapping {0}.", item.Mapping);
+        }
+
+        return Task.WhenAll(mapped
+            .Where(i => i.Entity is not null)
+            .Select(i => i.Mapping.WriteMappingAsync()));
+    }
     /// <summary>
     /// Writes mapping to HASS.
     /// </summary>
@@ -82,6 +122,16 @@ internal static partial class Ext
             case BooleanMapping bMapping: entity.CallService((source.Value?.Equals(true) == true) ? "turn_on" : "turn_off"); break;
             /// <see href="https://www.home-assistant.io/integrations/input_select/#actions">
             case MultistateMapping mMapping: entity.CallService("select_option", new { option = mMapping.State }); break;
+            case DateMapping dMapping:
+                entity.CallService("set_datetime", new { date = dMapping.LocalDate.ToString("yyyy-MM-dd") });
+                break;
+            case TimeMapping tMapping:
+                entity.CallService("set_datetime", new { time = string.Format("{0:00}:{1:00}:00", tMapping.LocalTime.Hours, tMapping.LocalTime.Minutes) });
+                break;
+            case DateTimeMapping dtMapping:
+                var dt = dtMapping.LocalDateTime;
+                entity.CallService("set_datetime", new { datetime = dt.ToString("yyyy-MM-dd HH:mm:ss") });
+                break;
 
             default: throw new NotSupportedException($"Failed to write mapping of not supported type '{source.GetType().Name}'!");
         }
@@ -139,6 +189,10 @@ internal static partial class Ext
                 break;
             case MultistateMapping:
                 break;
+            case DateMapping:
+            case TimeMapping:
+            case DateTimeMapping:
+                break;
 
             default: throw new NotSupportedException($"Failed to obtain value from not supported mapping of type '{source.GetType().Name}'!");
         }
@@ -156,6 +210,44 @@ internal static partial class Ext
         JsonValueKind.False => false,
         _ => element.ToString()
     };
+
+    private static bool IsDateTimeNativeMapping(this IMapping source) => source is DateMapping or TimeMapping or DateTimeMapping;
+
+    private static CreateInputDatetimeCommand BuildInputDatetimeCreateCommand(this IMapping source)
+    {
+        var (hasDate, hasTime) = source switch
+        {
+            DateMapping => (true, false),
+            TimeMapping => (false, true),
+            DateTimeMapping => (true, true),
+            _ => throw new NotSupportedException($"Unsupported datetime mapping type '{source.GetType().Name}'.")
+        };
+
+        // HA's input_datetime/create API derives entity_id from the name field.
+        // Use the mapped object id to keep helper entity_id deterministic.
+        var objectId = source.EntityId.Split('.', 2).Last();
+        var createName = string.IsNullOrWhiteSpace(objectId) ? source.Name : objectId;
+
+        return new CreateInputDatetimeCommand
+        {
+            Name = createName,
+            HasDate = hasDate,
+            HasTime = hasTime
+        };
+    }
+
+    private sealed record CreateInputDatetimeCommand : CommandMessage
+    {
+        public CreateInputDatetimeCommand() { Type = "input_datetime/create"; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; init; } = string.Empty;
+        [JsonPropertyName("has_date")]
+        public bool HasDate { get; init; }
+        [JsonPropertyName("has_time")]
+        public bool HasTime { get; init; }
+    }
+
     static Exception WriteMappingNotSupported(EntityType type) => throw new NotSupportedException($"Failed to write mapping of not supported entity type '{type}'!");
     #endregion
 }

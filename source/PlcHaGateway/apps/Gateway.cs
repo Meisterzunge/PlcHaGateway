@@ -95,7 +95,10 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
                 Task bindingTask;
                 switch (mapping.Backend)
                 {
-                    case IntegrationType.Native: bindingTask = mapping.BindToNativeEntity(ha); break;
+                    case IntegrationType.Native:
+                        await mapping.EnsureNativeEntityExistsAsync(ha, runner, cancellationToken).ConfigureAwait(false);
+                        bindingTask = mapping.BindToNativeEntity(ha);
+                        break;
                     case IntegrationType.Mqtt: bindingTask = mapping.CreateMqttEntity(entityManager); break;
 
                     default: throw new NotSupportedException($"Failed to bind mapping of not supported backend '{mapping.Backend}'!");
