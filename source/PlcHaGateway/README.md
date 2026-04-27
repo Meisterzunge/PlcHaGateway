@@ -196,7 +196,7 @@ END_VAR
 | `FB_Mfr_WeatherForecast` | native weather binding | HA → PLC | Service-backed forecast mapping (`PlcHa.Weather := 'Nh'` / `Nd`). |
 | `FB_Mfr_View` | — | — | Virtual-device grouping root |
 | `FB_Mfr_Notification` | `persistent_notification` | PLC → HA | Fire-and-forget; each trigger adds a new sidebar entry |
-| `FB_Mfr_Event` | `persistent_notification` | PLC ↔ HA | Persistent; deduplicates by entity path; user-dismiss writes back to PLC |
+| `FB_Mfr_Event` | `persistent_notification` | PLC ↔ HA | Persistent; deduplicates by entity path; user-dismiss and PLC `bAcknowledge` dismiss events |
 
 ## Event bindings (`FB_Mfr_Notification` / `FB_Mfr_Event`)
 
@@ -238,7 +238,13 @@ fbPumpStarted(
 
 ### `FB_Mfr_Event` — persistent / deduplicating
 
-`bActive` level-triggers the notification. `TRUE` → create or refresh (using entity path as `notification_id`); `FALSE` → dismiss. The gateway writes `bAckd := TRUE` when the user manually dismisses the notification in the HA sidebar.
+`bActive` level-triggers the notification. `TRUE` → create or refresh (using entity path as `notification_id`); `FALSE` → dismiss.
+
+`bAcknowledge` is a runtime acknowledge request on `FB_Mfr_Event`. A rising edge requests the gateway to dismiss the notification.
+
+`bAcknowledged` remains the completion output written by the gateway and is set to `TRUE` when the notification is dismissed, regardless of source:
+- user dismiss in the HA sidebar
+- PLC acknowledge request via `bAcknowledge`
 
 ```st
 {attribute 'PlcHa.Mapping' := 'boiler_fault'}

@@ -32,6 +32,12 @@
     <Compile Include="Events\E_Mfr_NotifySeverity.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Events\F_Mfr_AcknowledgeEvents.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Events\F_Mfr_ActiveEvents.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Events\I_Mfr_Event.TcPOU">
       <SubType>Code</SubType>
     </Compile>

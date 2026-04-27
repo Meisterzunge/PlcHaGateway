@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="F_Mfr_Events" Id="{053d2c30-42fe-4aa6-a11d-faa60406854a}" SpecialFunc="None">
-    <Declaration><![CDATA[/// Iterates all registered FB_Mfr_Event instances.
+    <Declaration><![CDATA[/// Iterates all FB_Mfr_Event instances.
 /// Returns TRUE while a current element is available.
 FUNCTION F_Mfr_Events : BOOL
 VAR_IN_OUT

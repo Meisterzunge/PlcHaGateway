@@ -20,6 +20,8 @@ END_VAR
 VAR_GLOBAL
 	{attribute 'hide'}
 	Events						: I_Mfr_Event;
+	{attribute 'hide'}
+	EventsActv					: BOOL;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

@@ -3,6 +3,11 @@
   <Itf Name="I_Mfr_Event" Id="{d8d3a27e-3fb4-4fd1-9174-dc0d7cf4b95d}">
     <Declaration><![CDATA[INTERFACE I_Mfr_Event
 ]]></Declaration>
+    <Folder Name="[Internal]" Id="{ba28ae2e-6e81-4932-8ef9-1640e1b0d1b8}" />
+    <Method Name="Acknowledge" Id="{d19a932b-47de-4942-8ec4-bc38f6d0d62f}">
+      <Declaration><![CDATA[METHOD Acknowledge
+]]></Declaration>
+    </Method>
     <Property Name="Active" Id="{7d739ef1-4f96-4039-af4f-bd758d8effa4}">
       <Declaration><![CDATA[PROPERTY Active : BOOL]]></Declaration>
       <Get Name="Get" Id="{10e6464d-881f-42ec-a2bf-d3eca325c573}">
@@ -15,7 +20,7 @@
         <Declaration><![CDATA[]]></Declaration>
       </Get>
     </Property>
-    <Property Name="Next" Id="{ee64735e-bdf3-42ca-b21d-e8683385bc6f}">
+    <Property Name="Next" Id="{ee64735e-bdf3-42ca-b21d-e8683385bc6f}" FolderPath="[Internal]\">
       <Declaration><![CDATA[{attribute 'hide'}
 PROPERTY Next : I_Mfr_Event]]></Declaration>
       <Get Name="Get" Id="{a32292f4-48de-4671-9847-49e81cdfdcf1}">

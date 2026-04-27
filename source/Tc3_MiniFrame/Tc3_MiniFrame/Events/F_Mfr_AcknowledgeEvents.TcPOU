@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_Mfr_AcknowledgeEvents" Id="{485bfc2e-7e49-49df-a000-9048700980e7}" SpecialFunc="None">
+    <Declaration><![CDATA[/// Acknowledges all currently active events.
+/// Returns the number of events acknowledged.
+FUNCTION F_Mfr_AcknowledgeEvents : UDINT
+VAR
+	iEvt : I_Mfr_Event;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_Mfr_AcknowledgeEvents := 0;
+
+WHILE F_Mfr_Events(iEvt, TRUE) DO
+	iEvt.Acknowledge();
+	F_Mfr_AcknowledgeEvents := F_Mfr_AcknowledgeEvents + 1;
+END_WHILE
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

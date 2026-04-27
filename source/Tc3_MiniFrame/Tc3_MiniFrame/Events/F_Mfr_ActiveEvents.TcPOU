@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_Mfr_ActiveEvents" Id="{42148e48-641e-439f-bcdf-414b63b924c1}" SpecialFunc="None">
+    <Declaration><![CDATA[/// Checks for ective events.
+FUNCTION F_Mfr_ActiveEvents : BOOL
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_Mfr_ActiveEvents := Mfr_Global.EventsActv;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -4,36 +4,70 @@
     <Declaration><![CDATA[// Persistent, deduplicating event.
 // bActive TRUE  → creates/updates a notification in the HA sidebar (notification_id = entity path).
 // bActive FALSE → dismisses the notification.
-// bAckd is set by the gateway when the user manually dismisses the notification in the HA sidebar.
+// bAckd is set by the gateway when the notification is dismissed in HA (user dismiss or PLC acknowledge request).
+// bAck is a runtime acknowledge request input; rising edges request a gateway handshake.
 FUNCTION_BLOCK FB_Mfr_Event EXTENDS FB_Mfr IMPLEMENTS I_Mfr_Event
 VAR_INPUT
-	bActive		: BOOL;
-	sTitle		: STRING;
-	sMessage	: T_MaxString;
-	eSeverity	: E_Mfr_NotifySeverity := E_Mfr_NotifySeverity.eInfo;
+	bActive : BOOL;
+	sTitle : STRING;
+	sMessage : T_MaxString;
+	eSeverity : E_Mfr_NotifySeverity := E_Mfr_NotifySeverity.eInfo;
 END_VAR
 VAR_OUTPUT
-	bBusy		: BOOL;		// Gateway handshake: set by FB on state change, cleared by gateway after delivery.
-	bAckd		: BOOL;		// Set by gateway when user dismisses in HA sidebar; cleared when bActive goes FALSE.
+	bBusy : BOOL; // Gateway handshake: set by FB on state change or ack request, cleared by gateway after delivery.
+	bAckd : BOOL; // Set by gateway when user dismisses in HA sidebar; cleared when bActive goes FALSE.
+END_VAR
+VAR_INPUT CONSTANT
+	bAcknowledge : BOOL; // Set by the user to invoke dismiss by acknowledging from PLC.
 END_VAR
 VAR
-	bLastActive	: BOOL;
+	bLastActive : BOOL;
+	rAck : R_TRIG;
+	bAckPending : BOOL;
 	{attribute 'hide'}
-	nNextEvt	: I_Mfr_Event;
+	nNextEvt : I_Mfr_Event;
+END_VAR
+VAR_TEMP
+	{attribute 'hide'}
+	_iEvt : I_Mfr_Event := 0;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[SUPER^();
-
-IF bActive <> bLastActive THEN
-	bBusy := TRUE;
-	bLastActive := bActive;
-	IF NOT bActive THEN
-		bAckd := FALSE;
+rAck(CLK := bAcknowledge);
+IF bLastActive <> bActive THEN
+	IF bActive THEN
+		bBusy := TRUE;
 	END_IF
+	Mfr_Global.EventsActv := SEL(bActive, F_Mfr_Events(_iEvt, TRUE), TRUE); // Indicate active overall events.
+	bLastActive := bActive;
+END_IF
+
+IF rAck.Q AND bActive AND NOT bAckd THEN
+	bAckPending := TRUE;
+	bBusy := TRUE;
+END_IF
+
+IF bAckd THEN
+	bAcknowledge := FALSE;
+	bAckPending := FALSE;
+END_IF
+
+IF NOT bActive THEN
+	bAckd := FALSE;
+	bAckPending := FALSE;
+	bAcknowledge := FALSE;
 END_IF
 ]]></ST>
     </Implementation>
+    <Folder Name="[Internal]" Id="{5ff3090b-9e99-4b95-aef7-66de79ced9cc}" />
+    <Method Name="Acknowledge" Id="{5cd3db1e-4244-4a79-b1eb-db779ed2c2a0}">
+      <Declaration><![CDATA[METHOD Acknowledge
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bAcknowledge := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Property Name="Active" Id="{0d7ea625-b56e-4c76-95c3-d8b5f9829e02}">
       <Declaration><![CDATA[PROPERTY Active : BOOL]]></Declaration>
       <Get Name="Get" Id="{ba534569-14f1-4545-8e4f-f24e08e288ef}">
@@ -87,7 +121,7 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="Next" Id="{e48e8cbc-fa6a-4907-b117-f7f3f80b6cb9}">
+    <Property Name="Next" Id="{e48e8cbc-fa6a-4907-b117-f7f3f80b6cb9}" FolderPath="[Internal]\">
       <Declaration><![CDATA[{attribute 'hide'}
 PROPERTY Next : I_Mfr_Event]]></Declaration>
       <Get Name="Get" Id="{8eab4d9e-cbea-4774-87b9-54b46ebff1a5}">
@@ -107,7 +141,7 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Method Name="RegisterEvent" Id="{5c0e6eb0-7d22-46bd-8419-b85f2bc49ffc}">
+    <Method Name="RegisterEvent" Id="{5c0e6eb0-7d22-46bd-8419-b85f2bc49ffc}" FolderPath="[Internal]\">
       <Declaration><![CDATA[METHOD PRIVATE RegisterEvent
 VAR
 	iThis : I_Mfr_Event;
@@ -144,7 +178,7 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Method Name="UnregisterEvent" Id="{bca91d7e-4b79-476c-9b9f-fc4b14915aaa}">
+    <Method Name="UnregisterEvent" Id="{bca91d7e-4b79-476c-9b9f-fc4b14915aaa}" FolderPath="[Internal]\">
       <Declaration><![CDATA[METHOD PRIVATE UnregisterEvent
 VAR
 	iCurrent : I_Mfr_Event;

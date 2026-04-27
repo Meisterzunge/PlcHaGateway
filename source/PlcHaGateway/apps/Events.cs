@@ -192,11 +192,19 @@ internal sealed class NotificationBinding : EventBindingBase
 /// </summary>
 internal sealed class EventBinding : EventBindingBase
 {
+    // PLC event state and handshake symbols.
     private readonly ISymbol bActiveSymbol;
+    private readonly ISymbol bAckSymbol;
     private readonly ISymbol bAckdSymbol;
+
+    // ADS read/write commands for event payload and ACK handshake.
+    private readonly SumSymbolRead ackReadCmd;
     private readonly SumSymbolRead payloadReadCmd;
     private readonly SumSymbolWrite ackdWriteCmd;
     private bool lastBusy;
+    private bool lastAck;
+
+    // If true, write bAckd := TRUE to PLC in this cycle.
     private volatile bool pendingAck;
 
     private IHomeAssistantRunner? runner;
@@ -207,12 +215,14 @@ internal sealed class EventBinding : EventBindingBase
     public EventBinding(ISymbol symbol, VirtualDevice? owner) : base(symbol, owner)
     {
         this.bActiveSymbol = symbol.SubSymbols["bActive"];
+        this.bAckSymbol    = symbol.SubSymbols["bAcknowledge"];
         this.bAckdSymbol   = symbol.SubSymbols["bAckd"];
         var sMessage       = symbol.SubSymbols["sMessage"];
         var sTitle         = symbol.SubSymbols["sTitle"];
         var eSeverity      = symbol.SubSymbols["eSeverity"];
 
         // Order: [0]=bActive, [1]=sMessage, [2]=sTitle, [3]=eSeverity
+        this.ackReadCmd    = CreateSumRead(bAckSymbol);
         this.payloadReadCmd = CreateSumRead(bActiveSymbol, sMessage, sTitle, eSeverity);
         this.ackdWriteCmd   = new SumSymbolWrite(connection, new[] { bAckdSymbol }.ToList());
     }
@@ -224,6 +234,10 @@ internal sealed class EventBinding : EventBindingBase
         // Startup sync: re-align HA sidebar with current PLC state (handles gateway restarts).
         try
         {
+            var ackRes = await ackReadCmd.Read2Async(cancel).ConfigureAwait(false);
+            var ackVal = ackRes.ValueResults.FirstOrDefault();
+            lastAck = ackVal is not null && ackVal.Succeeded && ackVal.Value is bool ack && ack;
+
             var results  = (await payloadReadCmd.Read2Async(cancel).ConfigureAwait(false)).ValueResults.ToArray();
             var active   = results[0].Succeeded && results[0].Value is bool b && b;
             var message  = results[1].Succeeded ? (string)results[1].Value! : string.Empty;
@@ -258,6 +272,23 @@ internal sealed class EventBinding : EventBindingBase
 
     public override async Task ProcessAsync(IHaContext ha, CancellationToken cancel)
     {
+        // Poll PLC bAck and treat rising edges as explicit dismiss requests from PLC logic.
+        var ackRes = await ackReadCmd.Read2Async(cancel).ConfigureAwait(false);
+        var ackVal = ackRes.ValueResults.FirstOrDefault();
+        var ack = ackVal is not null && ackVal.Succeeded && ackVal.Value is bool b && b;
+        var ackRising = !lastAck && ack;
+        lastAck = ack;
+
+        if (ackRising)
+        {
+            LogEvent.Gw.LogInformation("Received PLC acknowledge request for event '{0}'.", EntityId);
+
+            // PLC requested an acknowledge: dismiss notification and reflect completion via bAckd.
+            ha.CallService("persistent_notification", "dismiss", null, new { notification_id = EntityId });
+            notificationShown = false;
+            pendingAck = true;
+        }
+
         // Poll HA every DismissCheckInterval while we believe the notification is shown.
         if (notificationShown && DateTime.UtcNow - lastDismissCheck >= DismissCheckInterval)
         {
@@ -282,7 +313,7 @@ internal sealed class EventBinding : EventBindingBase
             }
         }
 
-        // Forward user-dismiss ACK to PLC (bAckd := TRUE):
+        // Forward dismiss ACK to PLC (bAckd := TRUE), independent of dismiss source.
         if (pendingAck)
         {
             pendingAck = false;
@@ -304,7 +335,7 @@ internal sealed class EventBinding : EventBindingBase
 
                 LogEvent.Gw.LogTrace("Processing event '{0}' (active={1}).", EntityId, active);
 
-                if (active)
+                if (active && !ackRising)
                 {
                     ha.CallService("persistent_notification", "create", null, new
                     {
@@ -314,11 +345,12 @@ internal sealed class EventBinding : EventBindingBase
                     });
                     notificationShown = true;
                 }
-                else
+                else if (!active)
                 {
                     ha.CallService("persistent_notification", "dismiss", null, new { notification_id = EntityId });
                     notificationShown = false;
                 }
+                // active && ackRising: dismiss already sent above; skip re-creation.
             }
             catch (Exception ex)
             {
