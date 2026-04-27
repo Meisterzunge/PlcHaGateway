@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_Mfr_Events" Id="{053d2c30-42fe-4aa6-a11d-faa60406854a}" SpecialFunc="None">
+    <Declaration><![CDATA[/// Iterates all registered FB_Mfr_Event instances.
+/// Returns TRUE while a current element is available.
+FUNCTION F_Mfr_Events : BOOL
+VAR_IN_OUT
+	iNextEvent : I_Mfr_Event; // Cursor state owned by caller between calls.
+END_VAR
+VAR_INPUT
+	bActiveOnly : BOOL := FALSE; // If TRUE, iterator skips inactive events.
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF (iNextEvent = 0) THEN
+	iNextEvent := Mfr_Global.Events;
+ELSE
+	iNextEvent := iNextEvent.Next;
+END_IF
+
+IF (bActiveOnly) THEN
+	WHILE ((iNextEvent <> 0) AND_THEN (NOT iNextEvent.Active)) DO
+		iNextEvent := iNextEvent.Next;
+	END_WHILE
+END_IF
+
+F_Mfr_Events := (iNextEvent <> 0);]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

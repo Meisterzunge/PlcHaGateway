@@ -33,6 +33,24 @@ VAR
 	test_sel1 : FB_Mfr_MValOp := (nVal:=E_OffOnTest.Auto);
 END_VAR
 VAR
+	// Local test events to validate iteration.
+	bTestEvents : BOOL := FALSE;
+	tstEvt01 : FB_Mfr_Event := (
+		sTitle := 'Test event 01',
+		sMessage := 'Some event.'
+	);
+	tstEvt02 : FB_Mfr_Event := (
+		sTitle := 'Test event 02',
+		sMessage := 'Some warning.',
+		eSeverity := E_Mfr_NotifySeverity.eWarning
+	);
+	
+	nEvtItrTotal : UDINT;
+	nEvtItrActive : UDINT;
+	{attribute 'hide'}
+	_iEvent : I_Mfr_Event;
+END_VAR
+VAR
 	_dummy : E_OffOnTest; // Just to make known to TcTypeSystem
 END_VAR
 ]]></Declaration>
@@ -43,6 +61,22 @@ END_VAR
 test_number();
 test_toggle();
 test_sel1();
+
+// Event test:
+tstEvt01();
+tstEvt02();
+IF (bTestEvents) THEN
+	_iEvent := 0;
+	nEvtItrTotal := 0;
+	nEvtItrActive := 0;
+	WHILE F_Mfr_Events(_iEvent, FALSE) DO
+		nEvtItrTotal := nEvtItrTotal + 1;
+		IF _iEvent.Active THEN
+			nEvtItrActive := nEvtItrActive + 1;
+		END_IF
+	END_WHILE
+	bTestEvents := FALSE;
+END_IF
 ]]></ST>
     </Implementation>
   </POU>

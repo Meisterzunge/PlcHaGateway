@@ -5,7 +5,7 @@
 // bActive TRUE  → creates/updates a notification in the HA sidebar (notification_id = entity path).
 // bActive FALSE → dismisses the notification.
 // bAckd is set by the gateway when the user manually dismisses the notification in the HA sidebar.
-FUNCTION_BLOCK FB_Mfr_Event EXTENDS FB_Mfr
+FUNCTION_BLOCK FB_Mfr_Event EXTENDS FB_Mfr IMPLEMENTS I_Mfr_Event
 VAR_INPUT
 	bActive		: BOOL;
 	sTitle		: STRING;
@@ -18,6 +18,8 @@ VAR_OUTPUT
 END_VAR
 VAR
 	bLastActive	: BOOL;
+	{attribute 'hide'}
+	nNextEvt	: I_Mfr_Event;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -32,5 +34,142 @@ IF bActive <> bLastActive THEN
 END_IF
 ]]></ST>
     </Implementation>
+    <Property Name="Active" Id="{0d7ea625-b56e-4c76-95c3-d8b5f9829e02}">
+      <Declaration><![CDATA[PROPERTY Active : BOOL]]></Declaration>
+      <Get Name="Get" Id="{ba534569-14f1-4545-8e4f-f24e08e288ef}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Active := bActive;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_exit" Id="{bd649783-01e1-45ad-817d-74f2e699f3c3}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	UnregisterEvent();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{8f867b74-7630-42b0-a7ef-16dbe50fdfc8}">
+      <Declaration><![CDATA[// FB_Init is always available implicitly and it is used primarily for initialization.
+// The return value is not evaluated. For a specific influence, you can also declare the
+// methods explicitly and provide additional code there with the standard initialization
+// code. You can evaluate the return value.
+METHOD FB_Init : BOOL
+VAR_INPUT
+		bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+		bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	RegisterEvent();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Message" Id="{e037374a-d110-47be-a03f-05d2bff003be}">
+      <Declaration><![CDATA[PROPERTY Message : T_MaxString]]></Declaration>
+      <Get Name="Get" Id="{75387e4c-fd49-4f17-92de-5db54ac45b98}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Message := sMessage;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Next" Id="{e48e8cbc-fa6a-4907-b117-f7f3f80b6cb9}">
+      <Declaration><![CDATA[{attribute 'hide'}
+PROPERTY Next : I_Mfr_Event]]></Declaration>
+      <Get Name="Get" Id="{8eab4d9e-cbea-4774-87b9-54b46ebff1a5}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Next := nNextEvt;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{46f4f80b-572b-4fb1-b72b-9b8b61217880}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nNextEvt := Next;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Method Name="RegisterEvent" Id="{5c0e6eb0-7d22-46bd-8419-b85f2bc49ffc}">
+      <Declaration><![CDATA[METHOD PRIVATE RegisterEvent
+VAR
+	iThis : I_Mfr_Event;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iThis := THIS^;
+
+UnregisterEvent();
+
+nNextEvt := Mfr_Global.Events;
+Mfr_Global.Events := iThis;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Severity" Id="{00e65c65-33ac-48f8-b2b5-190d372d3c1f}">
+      <Declaration><![CDATA[PROPERTY Severity : E_Mfr_NotifySeverity]]></Declaration>
+      <Get Name="Get" Id="{cb291415-f8dd-4412-a7f7-16d195fcc6b7}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Severity := eSeverity;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Title" Id="{f4e32dbd-b2ee-48ef-b03b-fc7b3e91a011}">
+      <Declaration><![CDATA[PROPERTY Title : STRING]]></Declaration>
+      <Get Name="Get" Id="{4180d7b3-cb24-4c03-b56e-86cb0166816f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Title := sTitle;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="UnregisterEvent" Id="{bca91d7e-4b79-476c-9b9f-fc4b14915aaa}">
+      <Declaration><![CDATA[METHOD PRIVATE UnregisterEvent
+VAR
+	iCurrent : I_Mfr_Event;
+	iThis : I_Mfr_Event;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iThis := THIS^;
+
+IF (Mfr_Global.Events = iThis) THEN
+	Mfr_Global.Events := nNextEvt;
+	nNextEvt := 0;
+	RETURN;
+END_IF
+
+iCurrent := Mfr_Global.Events;
+WHILE (iCurrent <> 0) DO
+	IF (iCurrent.Next = iThis) THEN
+		iCurrent.Next := nNextEvt;
+		nNextEvt := 0;
+		EXIT;
+	END_IF
+	iCurrent := iCurrent.Next;
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

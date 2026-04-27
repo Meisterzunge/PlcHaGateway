@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_Mfr_Event" Id="{d8d3a27e-3fb4-4fd1-9174-dc0d7cf4b95d}">
+    <Declaration><![CDATA[INTERFACE I_Mfr_Event
+]]></Declaration>
+    <Property Name="Active" Id="{7d739ef1-4f96-4039-af4f-bd758d8effa4}">
+      <Declaration><![CDATA[PROPERTY Active : BOOL]]></Declaration>
+      <Get Name="Get" Id="{10e6464d-881f-42ec-a2bf-d3eca325c573}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Message" Id="{9a84164a-0c8e-4f95-acea-0d1dec31bbb6}">
+      <Declaration><![CDATA[PROPERTY Message : T_MaxString]]></Declaration>
+      <Get Name="Get" Id="{7c19bae1-e887-40b5-9065-c216763186c1}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Next" Id="{ee64735e-bdf3-42ca-b21d-e8683385bc6f}">
+      <Declaration><![CDATA[{attribute 'hide'}
+PROPERTY Next : I_Mfr_Event]]></Declaration>
+      <Get Name="Get" Id="{a32292f4-48de-4671-9847-49e81cdfdcf1}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{c2fbb5a3-b5d8-4e08-aa24-dc1ecfdc75a8}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+    <Property Name="Severity" Id="{d6a17e07-3e60-4887-bf90-510e063c403f}">
+      <Declaration><![CDATA[PROPERTY Severity : E_Mfr_NotifySeverity]]></Declaration>
+      <Get Name="Get" Id="{95aff632-5681-4f87-97ef-d5ece2c96aa3}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Title" Id="{2d395dc2-8f41-4f16-ae4c-6fe95a040920}">
+      <Declaration><![CDATA[PROPERTY Title : STRING]]></Declaration>
+      <Get Name="Get" Id="{fa5d78c5-77d8-44bc-93a6-6a49d0c6ba50}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>
