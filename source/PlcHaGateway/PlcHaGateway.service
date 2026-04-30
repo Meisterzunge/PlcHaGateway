@@ -1,7 +1,8 @@
 [Unit]
 Description=PlcHaGateway
-After=network-online.target
+After=network-online.target TcSystemServiceUM
 Wants=network-online.target
+Requires=TcSystemServiceUM
 
 [Service]
 Type=simple
