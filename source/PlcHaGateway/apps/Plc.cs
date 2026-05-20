@@ -128,6 +128,8 @@ public enum SymbolType
     Notification,
     [FunctionBlock("Event")]
     Event,
+    [FunctionBlock("Log")]
+    Log,
 
     PrimitiveAnalog,
     PrimitiveBinary,
@@ -278,7 +280,7 @@ internal static partial class Ext
     private static readonly SymbolType[] MiniFrameValueTypes = { SymbolType.AnalogValue, SymbolType.BinaryValue, SymbolType.MultistateValue };
     private static readonly SymbolType[] MiniFramePrimitiveValueTypes = { SymbolType.PrimitiveAnalog, SymbolType.PrimitiveBinary, SymbolType.PrimitiveMultistate };
     private static readonly SymbolType[] MiniFrameOperationalTypes = { SymbolType.AnalogOperationalValue, SymbolType.BinaryOperationalValue, SymbolType.MultistateOperationalValue };
-    private static readonly SymbolType[] MiniFrameEventTypes = { SymbolType.Notification, SymbolType.Event };
+    private static readonly SymbolType[] MiniFrameEventTypes = { SymbolType.Notification, SymbolType.Event, SymbolType.Log };
     private static readonly SymbolType[] WeatherTypes = { SymbolType.CurrentWeather, SymbolType.WeatherForecast };
     #endregion
 

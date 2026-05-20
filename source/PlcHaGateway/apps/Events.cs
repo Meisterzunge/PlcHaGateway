@@ -19,6 +19,15 @@ public enum E_Mfr_NotifySeverity : uint
     Error = 2
 }
 
+public enum E_Mfr_LogLevel : uint
+{
+    Debug = 0,
+    Info = 1,
+    Warning = 2,
+    Error = 3,
+    Critical = 4
+}
+
 
 public interface IEventBinding
 {
@@ -45,6 +54,7 @@ internal static class EventBindingFactory
             {
                 SymbolType.Notification => new NotificationBinding(symbol, owner),
                 SymbolType.Event        => new EventBinding(symbol, owner),
+                SymbolType.Log          => new LogBinding(symbol, owner),
                 _                       => null
             };
         }
@@ -178,6 +188,70 @@ internal sealed class NotificationBinding : EventBindingBase
 
         lastBusy = busy;
     }
+}
+
+
+/// <summary>
+/// Event binding for <c>FB_Mfr_Log</c> - fire-and-forget log entry.
+/// Each rising edge of <c>bSend</c> writes one entry via HA <c>system_log.write</c>.
+/// </summary>
+internal sealed class LogBinding : EventBindingBase
+{
+    private readonly SumSymbolRead payloadReadCmd;
+    private bool lastBusy;
+
+    public LogBinding(ISymbol symbol, VirtualDevice? owner) : base(symbol, owner)
+    {
+        var sMessage = symbol.SubSymbols["sMessage"];
+        var eLevel   = symbol.SubSymbols["eLevel"];
+        this.payloadReadCmd = CreateSumRead(sMessage, eLevel);
+    }
+
+    public override async Task ProcessAsync(IHaContext ha, CancellationToken cancel)
+    {
+        var busy = await ReadBusyAsync(cancel).ConfigureAwait(false);
+
+        if (!lastBusy && busy) // rising edge
+        {
+            try
+            {
+                var read = await payloadReadCmd.Read2Async(cancel).ConfigureAwait(false);
+                var results = read.ValueResults?.ToArray() ?? [];
+                var message = results[0].Succeeded ? (string)results[0].Value! : string.Empty;
+                var level   = results[1].Succeeded ? (E_Mfr_LogLevel)Convert.ToUInt32(results[1].Value!) : E_Mfr_LogLevel.Info;
+
+                LogEvent.Gw.LogDebug("Writing HA system log entry '{0}'.", EntityId);
+
+                ha.CallService("system_log", "write", null, new
+                {
+                    message,
+                    level = ToHaLogLevel(level),
+                    logger = EntityId
+                });
+            }
+            catch (Exception ex)
+            {
+                LogEvent.Gw.LogError(ex, "Failed to write HA system log entry '{0}'.", EntityId);
+            }
+            finally
+            {
+                await ClearBusyAsync(cancel).ConfigureAwait(false);
+            }
+        }
+
+        lastBusy = busy;
+    }
+
+    private static string ToHaLogLevel(E_Mfr_LogLevel level)
+        => level switch
+        {
+            E_Mfr_LogLevel.Debug => "debug",
+            E_Mfr_LogLevel.Info => "info",
+            E_Mfr_LogLevel.Warning => "warning",
+            E_Mfr_LogLevel.Error => "error",
+            E_Mfr_LogLevel.Critical => "critical",
+            _ => "info"
+        };
 }
 
 

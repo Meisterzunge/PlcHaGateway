@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Mfr_Log" Id="{7cf7c4f5-7066-4769-906e-ea70164cc89b}" SpecialFunc="None">
+    <Declaration><![CDATA[// Fire-and-forget log message to Home Assistant system_log.write.
+// Each rising edge of bSend creates a new log entry (no deduplication).
+FUNCTION_BLOCK FB_Mfr_Log EXTENDS FB_Mfr
+VAR_INPUT
+	bSend		: BOOL;
+	sMessage	: T_MaxString;
+	eLevel		: E_Mfr_LogLevel := E_Mfr_LogLevel.eInfo;
+END_VAR
+VAR_INPUT CONSTANT
+	bAutoReset	: BOOL;		// If TRUE, the FB clears bSend after a detected rising edge.
+END_VAR
+VAR_OUTPUT
+	bBusy		: BOOL;		// Gateway handshake: set by FB on trigger, cleared by gateway after delivery.
+END_VAR
+VAR
+	rtSend		: R_TRIG;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[SUPER^();
+rtSend(CLK := bSend);
+IF rtSend.Q THEN
+	bBusy := TRUE;
+	IF (bAutoReset) THEN
+		bSend := FALSE;
+	END_IF
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

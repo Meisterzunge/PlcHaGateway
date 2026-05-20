@@ -197,15 +197,16 @@ END_VAR
 | `FB_Mfr_View` | — | — | Virtual-device grouping root |
 | `FB_Mfr_Notification` | `persistent_notification` | PLC → HA | Fire-and-forget; each trigger adds a new sidebar entry |
 | `FB_Mfr_Event` | `persistent_notification` | PLC ↔ HA | Persistent; deduplicates by entity path; user-dismiss and PLC `bAcknowledge` dismiss events |
+| `FB_Mfr_Log` | `system_log.write` | PLC → HA | Fire-and-forget log write; each trigger creates one HA system log entry |
 
-## Event bindings (`FB_Mfr_Notification` / `FB_Mfr_Event`)
+## Event bindings (`FB_Mfr_Notification` / `FB_Mfr_Event` / `FB_Mfr_Log`)
 
-Event FBs send Home Assistant persistent notifications without creating an MQTT entity. They are discovered inside a `FB_Mfr_View` subtree the same way as regular MFFBs.
+Event FBs send Home Assistant notifications or logs without creating an MQTT entity. They are discovered inside a `FB_Mfr_View` subtree the same way as regular MFFBs.
 
 ### Event mapping attributes
 
 - Required: `{attribute 'PlcHa.Mapping'}`
-- Use only `PlcHa.Mapping` for event FBs (`FB_Mfr_Event`, `FB_Mfr_Notification`).
+- Use only `PlcHa.Mapping` for event FBs (`FB_Mfr_Event`, `FB_Mfr_Notification`, `FB_Mfr_Log`).
 
 Recommended TwinCAT layout for maintainability is to keep event declarations in a dedicated region (for example `{region 'Events'}`), separate from regular model mappings.
 
@@ -260,6 +261,24 @@ fbBoilerFault(
 ```
 
 On gateway restart, the sidebar state is re-aligned with the current PLC `bActive` value (stale notifications are dismissed, missing ones are re-created).
+
+### `FB_Mfr_Log` — system log write
+
+Rising edge of `bSend` latches `bBusy := TRUE`. The gateway detects the rising edge, calls `system_log.write`, then clears `bBusy`.
+
+The Home Assistant `logger` field is set to the mapping-derived `EntityId` (normalized entity path). `eLevel` maps to `debug` / `info` / `warning` / `error` / `critical`.
+
+```st
+{attribute 'PlcHa.Mapping' := 'boiler_log'}
+fbBoilerLog : FB_Mfr_Log;
+
+// In body:
+fbBoilerLog(
+  bSend    := bBoilerLogPulse,
+  sMessage := 'Boiler log message from PLC.',
+  eLevel   := E_Mfr_LogLevel.eInfo
+);
+```
 
 ### Single shared FB vs. dedicated FBs
 

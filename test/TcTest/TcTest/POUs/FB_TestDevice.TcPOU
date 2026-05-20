@@ -112,6 +112,14 @@ VAR
 		sTitle := 'Fault',
 		eSeverity := E_Mfr_NotifySeverity.eError
 	);
+	
+	// Logs:
+	{attribute 'PlcHa.Mapping'}
+	fbLog : FB_Mfr_Log := (
+		sMessage := 'Manual test log from MAIN',
+		eLevel := E_Mfr_LogLevel.eInfo,
+		bAutoReset := TRUE
+	);
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[ai();
@@ -145,7 +153,9 @@ mvSpNative();
 avDspNative2();
 
 fbWelcome();
-fbPrsFault();]]></ST>
+fbPrsFault();
+fbLog();
+]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>
