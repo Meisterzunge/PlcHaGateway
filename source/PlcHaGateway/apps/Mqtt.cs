@@ -188,9 +188,15 @@ internal static partial class Ext
     /// <summary>
     /// Writes mappings of specified device to MQTT.
     /// </summary>
-    private static IEnumerable<Task> WriteDeviceMappingsAsync(this VirtualDevice? source, IEnumerable<IMapping> mappings, IMqttEntityManager entityManager, bool resetDirty = true) => mappings
-        .GroupBy(m => m.Info.EntityTypeName)
-        .Select(grp => WriteDeviceMappingsAsync(source, grp.Key, grp, entityManager, resetDirty));
+    private static IEnumerable<Task> WriteDeviceMappingsAsync(this VirtualDevice? source, IEnumerable<IMapping> mappings, IMqttEntityManager entityManager, bool resetDirty = true)
+    {
+        if (source is null)
+            return mappings.GroupBy(m => m.Info.EntityTypeName)
+                .Select(grp => WriteDeviceMappingsAsync(source, grp.Key, grp, entityManager, resetDirty));
+
+        return mappings.GroupBy(m => m.Info.EntityTypeName)
+            .Select(grp => WriteDeviceMappingsAsync(source, grp.Key, source.Mappings.Where(m => m.Info.EntityTypeName == grp.Key), entityManager, resetDirty));
+    }
     /// <summary>
     /// Writes mappings of specified device and entity type to MQTT.
     /// </summary>
