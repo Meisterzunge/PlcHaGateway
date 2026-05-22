@@ -1,10 +1,55 @@
-# Tc3_MiniFrame
+# PlcHaGateway
+
+## Overview
+
+PlcHaGateway is a NetDaemon 5 application (running on .NET 9) that bridges a TwinCAT PLC and Home Assistant.
+It reads and writes PLC symbols via ADS, creates and synchronizes Home Assistant entities via MQTT discovery/topics,
+and handles event/notification/log integrations through Home Assistant services.
+
+This repository contains both:
+
+- the C# gateway runtime (`source/PlcHaGateway`), and
+- the TwinCAT mini framework library (`source/Tc3_MiniFrame`) that provides the PLC-side function blocks (MFFB).
+
+## Topology
+
+```mermaid
+flowchart LR
+  subgraph PLC["TwinCAT Device / CX"]
+    POU["PLC Application\nMFFB instances"]
+  end
+
+  subgraph PLCHAGW["PlcHaGateway Host (.NET 9)"]
+    GW["PlcHaGateway Core"]
+    ADS["ADS Client Layer"]
+    MAP["Mapping Layer"]
+    EVT["Event/Notification/Log Layer"]
+  end
+
+  subgraph HAENV["Home Assistant Environment"]
+    HA["Home Assistant Core"]
+    MQTT["MQTT Broker"]
+  end
+
+  POU <-->|"ADS (read/write, notifications)"| ADS
+  ADS --> MAP
+  MAP <-->|"Entity state / command topics"| MQTT
+  MQTT <-->|"MQTT integration"| HA
+  GW --> MAP
+  GW --> EVT
+  EVT -->|"persistent_notification, system_log"| HA
+  GW <-->|"HA API/WebSocket via NetDaemon"| HA
+```
+
+## Tc3_MiniFrame
 
 **TwinCAT library** that provides a very basic framework to lineup on a "standard" set of POUs and to provide some primitive functionality.
 
-## Function Blocks
+### Function Blocks
 
 There are several _mini framework function blocks_ (MFFB) in the `Tc3_MiniFrame` library that can be used to create mappings:
+
+#### Objects
 
 - `FB_Mfr_AI` | Analog input
 - `FB_Mfr_AO` | Analog output
@@ -23,12 +68,24 @@ There are several _mini framework function blocks_ (MFFB) in the `Tc3_MiniFrame`
 
   Should be used when aggregating MFFB's.
 
-### Virtual device
+#### Events
+
+- `FB_Mfr_Event` | Event mapped to Home Assistant persistent notification (active + acknowledge)
+- `FB_Mfr_Notification` | Fire-and-forget Home Assistant persistent notification
+- `FB_Mfr_Log` | Home Assistant system log write
+
+#### Services
+
+- `FB_Mfr_Weather` | Weather service container with bundled weather entities and notifications
+- `FB_Mfr_WeatherNow` | Current weather service data
+- `FB_Mfr_WeatherForecast` | Forecast weather service data
+
+#### Virtual device
 
 The top most view is automatically considered a _virtual device_ wich will be mapped as such to the MQTT integration!
 It will group all nested MFFB's.
 
-## Attributes
+### Attributes
 
 Decorate the declared function blocks with the following attributes to associate it with the desired _Home Assistant entity_.
 
@@ -37,7 +94,7 @@ Once created, a mapping will be used to keep the symbol and entity synchronous.
 [Operational function blocks](#function-blocks) will be synchronized from _Home Assistant_ to _TwinCAT PLC_ and vice versa.
 All other [operational function blocks](#function-blocks) will synchronize from _TwinCAT PLC_ to _Home Assistant_ only!
 
-### Mapping
+#### Mapping
 
 Creates a mapping between _PLC variable_ and _HA entity_.
 
@@ -63,7 +120,7 @@ Creates a mapping between _PLC variable_ and _HA entity_.
   
   > The entities [domain](https://www.home-assistant.io/docs/configuration/entities_domains/#domains) will be infered from the [MFFB](#function-blocks) type used.
 
-### Name
+#### Name
 
 Specifies a mapped entities _friendly name_.
 
@@ -75,7 +132,7 @@ Specifies a mapped entities _friendly name_.
 > This attribute is mandatory!
   If omitted, the [MFFB's](#function-blocks) instance name will be used as fallback.
 
-### Model
+#### Model
 
 Specifies a mapped devices _model name_.
 
@@ -85,7 +142,7 @@ Specifies a mapped devices _model name_.
 > This attribute is mandatory!
   If omitted, the _TwinCAT_ project name will be used as fallback.
 
-### Manufacturer
+#### Manufacturer
 
 Specifies a mapped devices _manufacturer name_.
 
@@ -94,7 +151,7 @@ Specifies a mapped devices _manufacturer name_.
 
 > This attribute is optional.
 
-### Version
+#### Version
 
 Specifies a mapped devices _version_.
 
@@ -104,7 +161,7 @@ Specifies a mapped devices _version_.
 > This attribute is optional.
   If omitted, but a [global version structure](https://infosys.beckhoff.com/english.php?content=../content/1033/tc3_plc_intro/714823819.html&id=) was declared within the _TwinCAT_ it will be used as fallback.
 
-### Enum
+#### Enum
 
 Specifies a [multistate mapping's](#function-blocks) enumeration type.
 Each entitie's state is mapped to it's distinct PLC context counter part.
@@ -113,11 +170,11 @@ Each entitie's state is mapped to it's distinct PLC context counter part.
 - **Use-cases:** `FB_Mfr_MVal`, `FB_Mfr_MValOp`
 
 
-# PlcHa Gateway
+## PlcHa Gateway Runtime
 
 **C# daemon** that connects _Home Assistant_ and _TwinCAT PLC_ for synchronization of process data at runtime.
 
-## Entity configuration generator
+### Entity configuration generator
 
 TODO: creates a `*.yaml` of all MFFB's, found in PLC.
 
@@ -125,7 +182,7 @@ TODO: multistate entity:
 state are generated from the enum DataType. but only state that begins with capital letters!
 e.g. `invalid` or `_invalid` will be ignored.
 
-## Development
+### Development
 
 For _visual studio code_ create a `appsettings.Development.json` file to maintain developer settings excluded from the git repository:
 
