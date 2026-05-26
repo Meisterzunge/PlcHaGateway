@@ -121,6 +121,9 @@
     <Compile Include="Services\Weather\I_Mfr_WeatherForecast.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Services\Weather\I_Mfr_WeatherTemperature.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Services\Weather\I_Mfr_WeatherNow.TcPOU">
       <SubType>Code</SubType>
     </Compile>

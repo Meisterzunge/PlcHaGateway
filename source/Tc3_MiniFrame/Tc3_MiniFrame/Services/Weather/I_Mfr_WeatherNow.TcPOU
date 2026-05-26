@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <Itf Name="I_Mfr_WeatherNow" Id="{e0696dc1-f20d-4aab-a8e4-0627bcaac867}">
     <Declaration><![CDATA[/// Read-only interface exposing all output variables of FB_Mfr_WeatherNow (including base class fields).
-INTERFACE I_Mfr_WeatherNow]]></Declaration>
+INTERFACE I_Mfr_WeatherNow EXTENDS I_Mfr_WeatherTemperature]]></Declaration>
     <Property Name="CloudCoverage" Id="{b8b47fdb-30c5-4bba-88d2-06a8059bbb4c}">
       <Declaration><![CDATA[/// Cloud coverage [%].
 PROPERTY CloudCoverage : REAL]]></Declaration>
@@ -31,14 +31,6 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[/// Atmospheric pressure [hPa].
 PROPERTY Pressure : REAL]]></Declaration>
       <Get Name="Get" Id="{04bf96b8-7883-44cc-973e-9ce295413a27}">
-        <Declaration><![CDATA[VAR
-END_VAR]]></Declaration>
-      </Get>
-    </Property>
-    <Property Name="Temperature" Id="{5c85afce-534d-4623-8d6c-7124321aa610}">
-      <Declaration><![CDATA[/// Temperature [°C].
-PROPERTY Temperature : REAL]]></Declaration>
-      <Get Name="Get" Id="{652f6492-b516-4686-a962-d62fc657f334}">
         <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
       </Get>

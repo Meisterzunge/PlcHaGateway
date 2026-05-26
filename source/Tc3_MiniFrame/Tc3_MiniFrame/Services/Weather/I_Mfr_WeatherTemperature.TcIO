@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_Mfr_WeatherTemperature" Id="{a4e15a93-b2b4-400a-bf2f-23424967d3dd}">
+    <Declaration><![CDATA[/// Read-only interface exposing all output variables of FB_Mfr_WeatherForecast (including base class fields).
+INTERFACE I_Mfr_WeatherTemperature]]></Declaration>
+    <Property Name="Temperature" Id="{bd7df2d0-fe4b-49da-be20-47744f882aa1}">
+      <Declaration><![CDATA[/// Temperature [°C].
+PROPERTY Temperature : REAL]]></Declaration>
+      <Get Name="Get" Id="{304819c6-6bbb-45b5-af75-c38e19698156}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>

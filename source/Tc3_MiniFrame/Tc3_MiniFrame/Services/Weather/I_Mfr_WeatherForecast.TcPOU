@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <Itf Name="I_Mfr_WeatherForecast" Id="{13b96da8-f237-45d8-9803-ed9cccbf10e6}">
     <Declaration><![CDATA[/// Read-only interface exposing all output variables of FB_Mfr_WeatherForecast (including base class fields).
-INTERFACE I_Mfr_WeatherForecast]]></Declaration>
+INTERFACE I_Mfr_WeatherForecast EXTENDS I_Mfr_WeatherTemperature]]></Declaration>
     <Property Name="IsDaytime" Id="{12cb2562-1b90-4b58-a05b-1feadf8f23e9}">
       <Declaration><![CDATA[/// TRUE = daytime slot, FALSE = night slot.
 PROPERTY IsDaytime : BOOL]]></Declaration>
@@ -23,14 +23,6 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[/// Precipitation probability [%].
 PROPERTY PrecipitationProbability : REAL]]></Declaration>
       <Get Name="Get" Id="{eb85677a-0873-462a-b538-35e0c883b4b0}">
-        <Declaration><![CDATA[VAR
-END_VAR]]></Declaration>
-      </Get>
-    </Property>
-    <Property Name="Temperature" Id="{59b94f74-907c-41f7-9327-49f65e45f47f}">
-      <Declaration><![CDATA[/// Temperature [°C].
-PROPERTY Temperature : REAL]]></Declaration>
-      <Get Name="Get" Id="{899580ce-dd90-4761-8082-4c10f21a2aff}">
         <Declaration><![CDATA[VAR
 END_VAR]]></Declaration>
       </Get>
