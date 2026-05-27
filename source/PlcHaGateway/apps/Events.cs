@@ -106,6 +106,18 @@ internal abstract class EventBindingBase : IEventBinding
 
     protected Task ClearBusyAsync(CancellationToken cancel) => busyWriteCmd.WriteAsync(new object[] { false }, cancel);
 
+    /// <summary>
+    /// Resolves supported text wildcards for event and notification payload fields.
+    /// Currently supported (case-insensitive): <c>{owner}</c>.
+    /// </summary>
+    protected string ResolveWildcards(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+
+        return text.Replace("{owner}", Owner?.Name ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Returns a severity prefix + title string suitable for the HA notification title field.</summary>
     protected static string FormatTitle(E_Mfr_NotifySeverity severity, string? title)
     {
@@ -163,8 +175,8 @@ internal sealed class NotificationBinding : EventBindingBase
             try
             {
                 var results  = (await payloadReadCmd.Read2Async(cancel).ConfigureAwait(false)).ValueResults.ToArray();
-                var message  = results[0].Succeeded ? (string)results[0].Value! : string.Empty;
-                var title    = results[1].Succeeded ? (string)results[1].Value! : string.Empty;
+                var message  = ResolveWildcards(results[0].Succeeded ? (string)results[0].Value! : string.Empty);
+                var title    = ResolveWildcards(results[1].Succeeded ? (string)results[1].Value! : string.Empty);
                 var severity = results[2].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[2].Value!) : E_Mfr_NotifySeverity.Info;
 
                 LogEvent.Gw.LogInformation("Firing notification '{0}'.", EntityId);
@@ -314,8 +326,8 @@ internal sealed class EventBinding : EventBindingBase
 
             var results  = (await payloadReadCmd.Read2Async(cancel).ConfigureAwait(false)).ValueResults.ToArray();
             var active   = results[0].Succeeded && results[0].Value is bool b && b;
-            var message  = results[1].Succeeded ? (string)results[1].Value! : string.Empty;
-            var title    = results[2].Succeeded ? (string)results[2].Value! : string.Empty;
+            var message  = ResolveWildcards(results[1].Succeeded ? (string)results[1].Value! : string.Empty);
+            var title    = ResolveWildcards(results[2].Succeeded ? (string)results[2].Value! : string.Empty);
             var severity = results[3].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[3].Value!) : E_Mfr_NotifySeverity.Info;
 
             notificationShown = await IsNotificationActiveAsync(cancel).ConfigureAwait(false);
@@ -403,8 +415,8 @@ internal sealed class EventBinding : EventBindingBase
             {
                 var results  = (await payloadReadCmd.Read2Async(cancel).ConfigureAwait(false)).ValueResults.ToArray();
                 var active   = results[0].Succeeded && results[0].Value is bool ab && ab;
-                var message  = results[1].Succeeded ? (string)results[1].Value! : string.Empty;
-                var title    = results[2].Succeeded ? (string)results[2].Value! : string.Empty;
+                var message  = ResolveWildcards(results[1].Succeeded ? (string)results[1].Value! : string.Empty);
+                var title    = ResolveWildcards(results[2].Succeeded ? (string)results[2].Value! : string.Empty);
                 var severity = results[3].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[3].Value!) : E_Mfr_NotifySeverity.Info;
 
                 LogEvent.Gw.LogTrace("Processing event '{0}' (active={1}).", EntityId, active);

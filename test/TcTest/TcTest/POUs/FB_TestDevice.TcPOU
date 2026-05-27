@@ -101,7 +101,6 @@ VAR
 	{attribute 'PlcHa.Mapping'}
 	fbWelcome : FB_Mfr_Notification := (
 		sMessage := 'Nice to meet you!',
-		sTitle := 'Welcome',
 		eSeverity := E_Mfr_NotifySeverity.eInfo
 	);
 	
@@ -109,7 +108,7 @@ VAR
 	{attribute 'PlcHa.Mapping'}
 	fbPrsFault : FB_Mfr_Event := (
 		sMessage := 'Pressure fault active.',
-		sTitle := 'Fault',
+		sTitle := '{owner} / Fault',
 		eSeverity := E_Mfr_NotifySeverity.eError
 	);
 	

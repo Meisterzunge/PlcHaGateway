@@ -6,7 +6,7 @@
 FUNCTION_BLOCK FB_Mfr_Notification EXTENDS FB_Mfr
 VAR_INPUT
 	bSend		: BOOL;
-	sTitle		: STRING;
+	sTitle		: STRING := '{owner}';
 	sMessage	: T_MaxString;
 	eSeverity	: E_Mfr_NotifySeverity := E_Mfr_NotifySeverity.eInfo;
 END_VAR

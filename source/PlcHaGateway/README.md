@@ -215,8 +215,15 @@ Recommended TwinCAT layout for maintainability is to keep event declarations in 
 | Variable | Type | Description |
 |---|---|---|
 | `sMessage` | `STRING(255)` | Notification body. Supports Markdown. |
-| `sTitle` | `STRING(80)` | Notification title. Severity prefix is prepended automatically. |
+| `sTitle` | `STRING(80)` | Notification title. Severity prefix is prepended automatically. Default: `'{owner}'`. |
 | `eSeverity` | `E_Mfr_NotifySeverity` | `Info` (default), `Warning` (⚠), `Error` (❌). |
+
+### Wildcards and defaults
+
+- Supported text placeholders in `sTitle` and `sMessage` are resolved by the gateway before sending to Home Assistant.
+- Currently supported wildcard (case-insensitive): `{owner}`.
+- `{owner}` resolves to the owning mapped view/device name used by the gateway event binding context.
+- `FB_Mfr_Notification.sTitle` and `FB_Mfr_Event.sTitle` default to `'{owner}'`, so the owner name is shown even when no explicit title is assigned.
 
 ### `FB_Mfr_Notification` — fire-and-forget
 
@@ -232,7 +239,8 @@ fbPumpStarted : FB_Mfr_Notification;
 fbPumpStarted(
     bSend     := bPumpJustStarted,
     sMessage  := 'Circulation pump started.',
-    sTitle    := 'Pump',
+    // Optional: defaults to '{owner}'
+    sTitle    := '{owner} / Pump',
     eSeverity := E_Mfr_NotifySeverity.eInfo
 );
 ```
@@ -255,7 +263,8 @@ fbBoilerFault : FB_Mfr_Event;
 fbBoilerFault(
     bActive   := xBoilerFault,
     sMessage  := 'Boiler pressure fault active.',
-    sTitle    := 'Boiler',
+    // Optional: defaults to '{owner}'
+    sTitle    := '{owner} / Boiler',
     eSeverity := E_Mfr_NotifySeverity.eError
 );
 ```

@@ -9,7 +9,7 @@
 FUNCTION_BLOCK FB_Mfr_Event EXTENDS FB_Mfr IMPLEMENTS I_Mfr_Event
 VAR_INPUT
 	bActive : BOOL;
-	sTitle : STRING;
+	sTitle : STRING := '{owner}';
 	sMessage : T_MaxString;
 	eSeverity : E_Mfr_NotifySeverity := E_Mfr_NotifySeverity.eInfo;
 END_VAR
