@@ -158,9 +158,26 @@ Root discovery also supports custom function blocks that derive from `Tc3_MiniFr
 - The root view instance itself may omit `PlcHa.Mapping`.
 - Discovery only applies to view roots. Arbitrary wrapper or container types are not discovered.
 - At least one descendant member must carry `PlcHa.Mapping`.
+- Descendant members with `{attribute 'PlcHa.Mapping' := '!ignore'}` are excluded and do not count for discovery.
 - Inheritance support is limited to `FB_Mfr_View` roots.
 - Descendant mapped members may be supported MiniFrame MFFBs or primitive PLC variables such as `BOOL`, numeric primitives, or enums.
 - Primitive child mappings are exposed as read-only value-style entities inferred from datatype: `BOOL` -> `binary_sensor`, numeric primitives -> `sensor`, enums -> enum-style `sensor`.
+
+### Mapping directives
+
+Use mapping directives in `PlcHa.Mapping` to express system behavior.
+
+```st
+{attribute 'PlcHa.Mapping' := '!ignore'}
+test_number : FB_Mfr_AValOp;
+```
+
+Directive rules:
+
+- `!ignore` explicitly suppresses the symbol from gateway discovery/mapping.
+- `!ignore` also suppresses the full descendant subtree below that symbol.
+- A leading `!` always denotes a system directive namespace.
+- Any `PlcHa.Mapping` value starting with `!` is treated as non-mappable by the gateway.
 
 Example:
 

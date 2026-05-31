@@ -403,6 +403,9 @@ internal sealed class MappingFactory
     {
         try
         {
+            if (!symbol.IsMapped())
+                return (null); // Defensive guard; pipeline should already filter mapped symbols.
+
             if (symbol.TryGetSymbolType(out var fb, out _))
             {
                 if (fb == SymbolType.View)
@@ -457,6 +460,8 @@ internal sealed class MappingFactory
 internal static partial class Ext
 {
     #region Constants
+    private const string Cmd_IgnoreMapping = "!ignore";
+
     static readonly string PlcMappingParameterAttribute = PlcMappingParameter.Mapping
         .GetAttribute().PlcAttribute
         .Split('.')
@@ -522,7 +527,22 @@ internal static partial class Ext
     
 
     public static IEnumerable<ISymbol> WhereMapped(this IEnumerable<ISymbol> source) => source.Where(IsMapped);
-    public static bool IsMapped(this ISymbol source) => (source.TryGetMappingParameterAttribute() is not null);
+    public static bool IsMapped(this ISymbol source)
+    {
+        var mappingAttribute = source.TryGetMappingParameterAttribute();
+        if (mappingAttribute is null)
+            return (false);
+
+        var mappingValue = mappingAttribute.Value?.Trim();
+        if (IsIgnoreDirective(mappingValue))
+            return (false);
+        if (IsSystemDirective(mappingValue))
+            return (false);
+        if (HasIgnoreDirectiveInParents(source))
+            return (false);
+
+        return (true);
+    }
     public static IEnumerable<ITypeAttribute> GetMappingParameterAttributes(this ISymbol source) => source.Attributes
         .Where(a => a.TryResolveMappingParameterAttribute(out _, out var targetPath) && (targetPath is null));
     public static ITypeAttribute? TryGetMappingParameterAttribute(this ISymbol source, PlcMappingParameter parameter = PlcMappingParameter.Mapping) => source
@@ -570,6 +590,8 @@ internal static partial class Ext
         var attrib = source.TryGetMappingParameterAttribute();
         if (attrib is null)
             return (null);
+        else if (IsSystemDirective(attrib.Value))
+            return (null); // Mappings starting with '!' are reserved for system directives.
         else if (string.IsNullOrEmpty(attrib.Value))
             return (source.InstanceName);
         else
@@ -635,6 +657,22 @@ internal static partial class Ext
     }
     private static string NormalizeTargetPath(string source) => string.Join('.', source
         .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    private static bool HasIgnoreDirectiveInParents(ISymbol source)
+    {
+        var parent = source.Parent;
+        while (parent is not null)
+        {
+            var parentMapping = parent.TryGetMappingParameterAttribute()?.Value;
+            if (IsIgnoreDirective(parentMapping))
+                return (true);
+
+            parent = parent.Parent;
+        }
+
+        return (false);
+    }
+    private static bool IsSystemDirective(string? source) => !string.IsNullOrWhiteSpace(source) && source.Trim().StartsWith('!');
+    private static bool IsIgnoreDirective(string? source) => string.Equals(source?.Trim(), Cmd_IgnoreMapping, StringComparison.InvariantCultureIgnoreCase);
     public static (string Path, IntegrationType Backend, string? AttributeKey) GetEntityInfo(this ISymbol source)
     {
         var mapping = source.TryGetMappingParameterAttribute()?.Value;
