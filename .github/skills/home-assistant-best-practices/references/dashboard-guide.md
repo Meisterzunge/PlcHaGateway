@@ -66,7 +66,7 @@ Patterns and decisions for designing Home Assistant Lovelace dashboards.
   "title": "View Name",
   "path": "unique-path",
   "type": "sections",
-  "icon": "mdi:icon",
+  "icon": "mdi:view-dashboard",
   "max_columns": 4,
   "sections": [...],
   "subview": false,

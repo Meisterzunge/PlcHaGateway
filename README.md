@@ -169,6 +169,19 @@ Each entitie's state is mapped to it's distinct PLC context counter part.
 - **Syntax:** `{attribute 'PlcHa.Enum' := 'plc_enum_datatype'}`
 - **Use-cases:** `FB_Mfr_MVal`, `FB_Mfr_MValOp`
 
+#### Icon
+
+Specifies an explicit Home Assistant icon for the mapped entity.
+
+- **Syntax:** `{attribute 'PlcHa.Icon' := 'mdi:icon-name'}`
+- **Use-cases:** Any mapped entity where the default icon should be overridden.
+
+Icon conventions:
+
+- Use canonical Material Design Icons names with `mdi:` prefix and lowercase kebab-case.
+- Validate in the Home Assistant icon picker first (HA can lag behind latest MDI release).
+- Avoid placeholders or ambiguous aliases; prefer explicit semantic names.
+
 
 ## PlcHa Gateway Runtime
 

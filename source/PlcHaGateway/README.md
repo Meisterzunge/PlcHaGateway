@@ -2,6 +2,8 @@
 
 NetDaemon 5 (.NET 9) daemon bridging a **TwinCAT PLC** (via ADS) with **Home Assistant** (MQTT / native entities).
 
+> For overall repository context, read the root `README.md` first, especially the `Tc3_MiniFrame` section (`#sym:Tc3_MiniFrame`) that explains the PLC mini framework and MFFB intent.
+
 ## Architecture
 
 ```mermaid
@@ -30,6 +32,18 @@ Apply these `{attribute}` pragmas to mapped TwinCAT symbol declarations. Support
 | `PlcHa.Icon` | No | `mdi:thermometer` | MDI icon. |
 | `PlcHa.Enum` | Yes (select) | `E_OffOnTest` | TwinCAT enum type name for `select` / multistate entities. |
 | `PlcHa.Weather` | Yes (weather FBs) | `now`, `2h`, `12h`, `1d`, `3d` | Weather mode selector for `FB_Mfr_WeatherNow` / `FB_Mfr_WeatherForecast`. |
+
+Icon guidance:
+
+- Home Assistant frontend icons use Material Design Icons with the format: mdi:name.
+- Use canonical MDI names in the `mdi:name` format (lowercase, kebab-case).
+- Home Assistant icon picker is the source of truth for currently available icons in a running HA version, because Home Assistant can lag behind the latest MDI release.
+- Pictogrammers library can be newer than Home Assistant bundled MDI version.
+- Avoid placeholder or ambiguous alias values; prefer explicit semantic names (for example `mdi:hand-back-left` for manual mode instead of `mdi:hand`).
+- Workspace audit on 2026-06-04 found one invalid icon token in docs: mdi:icon.
+- Replaced invalid example with mdi:view-dashboard in .github skill reference docs.
+- Suggested manual-operation icon baseline: mdi:hand-back-left.
+
 
 ### Weather mapping (`PlcHa.Weather`)
 
