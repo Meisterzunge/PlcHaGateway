@@ -131,6 +131,41 @@ internal abstract class EventBindingBase : IEventBinding
         return string.IsNullOrEmpty(trimmed) ? prefix.TrimEnd() : $"{prefix}{trimmed}";
     }
 
+    /// <summary>
+    /// Safely parses ADS enum payloads that may arrive as signed integral types during PLC reloads.
+    /// Invalid or out-of-range values fall back to a caller-provided default.
+    /// </summary>
+    protected static TEnum ParseEnumOrDefault<TEnum>(object? value)
+        where TEnum : struct, Enum
+    {
+        if (value is null)
+            return default;
+
+        try
+        {
+            var numeric = Convert.ToInt64(value);
+            var enumType = typeof(TEnum);
+            var underlying = Enum.GetUnderlyingType(enumType);
+
+            object underlyingValue = underlying == typeof(byte) ? checked((byte)numeric)
+                : underlying == typeof(sbyte) ? checked((sbyte)numeric)
+                : underlying == typeof(short) ? checked((short)numeric)
+                : underlying == typeof(ushort) ? checked((ushort)numeric)
+                : underlying == typeof(int) ? checked((int)numeric)
+                : underlying == typeof(uint) ? checked((uint)numeric)
+                : underlying == typeof(long) ? numeric
+                : underlying == typeof(ulong) ? checked((ulong)numeric)
+                : throw new InvalidOperationException($"Unsupported enum backing type '{underlying.Name}'.");
+
+            var parsed = (TEnum)Enum.ToObject(enumType, underlyingValue);
+            return Enum.IsDefined(enumType, parsed) ? parsed : default;
+        }
+        catch
+        {
+            return default;
+        }
+    }
+
     /// <summary>Creates a SumSymbolRead for the supplied symbols using the current ADS connection.</summary>
     protected SumSymbolRead CreateSumRead(params ISymbol[] symbols)
         => new SumSymbolRead(connection, symbols.ToList(), SumAccessMode.IndexGroupIndexOffset, SumFallbackMode.All);
@@ -177,7 +212,7 @@ internal sealed class NotificationBinding : EventBindingBase
                 var results  = (await payloadReadCmd.Read2Async(cancel).ConfigureAwait(false)).ValueResults.ToArray();
                 var message  = ResolveWildcards(results[0].Succeeded ? (string)results[0].Value! : string.Empty);
                 var title    = ResolveWildcards(results[1].Succeeded ? (string)results[1].Value! : string.Empty);
-                var severity = results[2].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[2].Value!) : E_Mfr_NotifySeverity.Info;
+                var severity = ParseEnumOrDefault<E_Mfr_NotifySeverity>(results[2].Value);
 
                 LogEvent.Gw.LogInformation("Firing notification '{0}'.", EntityId);
 
@@ -230,7 +265,7 @@ internal sealed class LogBinding : EventBindingBase
                 var read = await payloadReadCmd.Read2Async(cancel).ConfigureAwait(false);
                 var results = read.ValueResults?.ToArray() ?? [];
                 var message = results[0].Succeeded ? (string)results[0].Value! : string.Empty;
-                var level   = results[1].Succeeded ? (E_Mfr_LogLevel)Convert.ToUInt32(results[1].Value!) : E_Mfr_LogLevel.Info;
+                var level   = ParseEnumOrDefault<E_Mfr_LogLevel>(results[1].Value);
 
                 LogEvent.Gw.LogDebug("Writing HA system log entry '{0}'.", EntityId);
 
@@ -328,7 +363,7 @@ internal sealed class EventBinding : EventBindingBase
             var active   = results[0].Succeeded && results[0].Value is bool b && b;
             var message  = ResolveWildcards(results[1].Succeeded ? (string)results[1].Value! : string.Empty);
             var title    = ResolveWildcards(results[2].Succeeded ? (string)results[2].Value! : string.Empty);
-            var severity = results[3].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[3].Value!) : E_Mfr_NotifySeverity.Info;
+            var severity = ParseEnumOrDefault<E_Mfr_NotifySeverity>(results[3].Value);
 
             notificationShown = await IsNotificationActiveAsync(cancel).ConfigureAwait(false);
 
@@ -417,7 +452,7 @@ internal sealed class EventBinding : EventBindingBase
                 var active   = results[0].Succeeded && results[0].Value is bool ab && ab;
                 var message  = ResolveWildcards(results[1].Succeeded ? (string)results[1].Value! : string.Empty);
                 var title    = ResolveWildcards(results[2].Succeeded ? (string)results[2].Value! : string.Empty);
-                var severity = results[3].Succeeded ? (E_Mfr_NotifySeverity)Convert.ToUInt32(results[3].Value!) : E_Mfr_NotifySeverity.Info;
+                var severity = ParseEnumOrDefault<E_Mfr_NotifySeverity>(results[3].Value);
 
                 LogEvent.Gw.LogTrace("Processing event '{0}' (active={1}).", EntityId, active);
 
