@@ -112,7 +112,6 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
         }
 
         LogEvent.Ads.LogInformation($"Start read job for cyclic update.");
-        this.plcReadCyclic = plc.CreateSymbolReadCommand(Mappings.OfCyclicallyReadable());
 
         LogEvent.Gw.LogInformation("Initializing event bindings...");
         foreach (var evt in Events)
@@ -161,37 +160,57 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
     }
     private async Task CyclicUpdateMappingsAsync(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        double updateFactor = 1.0;
+        if (cancellationToken.IsCancellationRequested)
+            return;
 
-        // Step 1) Update (Gateway -> PLC) dirty mappings:
-        var updated = await UpdateMappingsAsync(AutomationContext.Plc, cancellationToken)
-            .DetermineUpdateFactor(ref updateFactor)
-            .ConfigureAwait(false);
+        var baseDelay = config.GetValue<double>("CyclicUpdate");
+        var nextDelay = TimeSpan.FromSeconds(baseDelay);
 
-        // Step 2) Refresh actual PLC values (Gateway <- PLC):
-        var cmd = plcReadCyclic;
-        if (!updated.IsEmpty())
-            // Create temporary sum command for all mappings, excluding the updated ones:
-            cmd = plc.CreateSymbolReadCommand(Mappings
-                .OfCyclicallyReadable()
-                .Except(updated));
+        try
+        {
+            double updateFactor = 1.0;
 
-        var changes = await cmd.ReadMappingsAsync(cancellationToken).ConfigureAwait(false);
-        if (changes > 0)
-            LogEvent.Ads.LogTrace($"Refreshed {changes} [GW <- {AutomationContext.Plc}] mapping(s) in cyclic update.");
-
-        // Step 3) Repeat update (Gateway -> HASS) dirty mappings due to the latest changes:
-        if (changes > 0)
-            await UpdateMappingsAsync(AutomationContext.Hass, cancellationToken)
+            // Step 1) Update (Gateway -> PLC) dirty mappings:
+            var updated = await UpdateMappingsAsync(AutomationContext.Plc, cancellationToken)
                 .DetermineUpdateFactor(ref updateFactor)
                 .ConfigureAwait(false);
 
-        // Step 4) Process event bindings (PLC bBusy → HA notification service calls):
-        await ProcessEventsAsync(cancellationToken).ConfigureAwait(false);
+            // Step 2) Refresh actual PLC values (Gateway <- PLC):
+            var readable = Mappings.OfCyclicallyReadable();
+            if (!updated.IsEmpty())
+                readable = readable.Except(updated);
 
-        // Schedule next update:
-        var delay = (config.GetValue<double>("CyclicUpdate") * updateFactor);
-        scheduler.ScheduleAsync(TimeSpan.FromSeconds(delay), CyclicUpdateMappingsAsync);
+            var cmd = plc.CreateSymbolReadCommand(readable);
+            var changes = await cmd.ReadMappingsAsync(cancellationToken).ConfigureAwait(false);
+            if (changes > 0)
+                LogEvent.Ads.LogTrace($"Refreshed {changes} [GW <- {AutomationContext.Plc}] mapping(s) in cyclic update.");
+
+            // Step 3) Repeat update (Gateway -> HASS) dirty mappings due to the latest changes:
+            if (changes > 0)
+                await UpdateMappingsAsync(AutomationContext.Hass, cancellationToken)
+                    .DetermineUpdateFactor(ref updateFactor)
+                    .ConfigureAwait(false);
+
+            // Step 4) Process event bindings (PLC bBusy -> HA notification service calls):
+            await ProcessEventsAsync(cancellationToken).ConfigureAwait(false);
+
+            nextDelay = TimeSpan.FromSeconds(baseDelay * updateFactor);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            // Keep the scheduler alive after transient ADS/MQTT faults.
+            LogEvent.Gw.LogError(ex, "Unhandled exception in cyclic update loop; continuing with next cycle.");
+            nextDelay = TimeSpan.FromSeconds(Math.Max(1.0, baseDelay));
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested)
+                scheduler.ScheduleAsync(nextDelay, CyclicUpdateMappingsAsync);
+        }
     }
     private async Task WeatherPollAsync(IScheduler scheduler, CancellationToken cancellationToken)
     {
@@ -217,7 +236,6 @@ public class PlcHaGatewayApp : IAsyncInitializable, IDisposable
     private IConfiguration config;
 
     private Plc plc;
-    private SumSymbolRead plcReadCyclic;
 
     private IHaContext ha;
     private IScheduler scheduler;
