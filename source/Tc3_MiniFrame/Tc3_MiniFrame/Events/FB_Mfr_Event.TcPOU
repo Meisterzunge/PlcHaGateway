@@ -36,9 +36,7 @@ END_VAR
       <ST><![CDATA[SUPER^();
 rAck(CLK := bAcknowledge);
 IF bLastActive <> bActive THEN
-	IF bActive THEN
-		bBusy := TRUE;
-	END_IF
+	bBusy := TRUE; // Signal the state change in either direction (create on TRUE, dismiss on FALSE).
 	Mfr_Global.EventsActv := SEL(bActive, F_Mfr_Events(_iEvt, TRUE), TRUE); // Indicate active overall events.
 	bLastActive := bActive;
 END_IF
@@ -47,7 +45,6 @@ IF rAck.Q AND bActive AND NOT bAckd THEN
 	bAckPending := TRUE;
 	bBusy := TRUE;
 END_IF
-
 IF bAckd THEN
 	bAcknowledge := FALSE;
 	bAckPending := FALSE;
