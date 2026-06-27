@@ -226,17 +226,18 @@ internal static partial class Ext
     #region Helper
     private static IEnumerable<(PlcMappingParameter Parameter, string MqttAttribute, ITypeAttribute Attribute)> GetMqttMappingParameterAttributes(this IMapping source)
     {
-        var attribs = source.Symbol.GetMappingParameterAttributes();
-        foreach (var attrib in attribs)
+        // Resolve each MQTT-relevant parameter through the override-aware lookup so that
+        // virtual-device scoped overrides (e.g. 'PlcHa.Max[Target]') declared on parent
+        // symbols are honored, not just attributes declared directly on the mapped symbol.
+        foreach (var (param, paramAttrib) in MqttMappingParameters)
         {
-            if (MqttMappingParameters.TryGetKeyOf(a => attrib.Name.Equals(a.PlcAttribute, StringComparison.InvariantCultureIgnoreCase), out var param))
-            {
-                var paramAttrib = MqttMappingParameters[param];
-                if (string.IsNullOrEmpty(attrib.Value))
-                    throw new ArgumentNullException($"Specified attribute '{paramAttrib.PlcAttribute}' has no value!");
-                else
-                    yield return (param, paramAttrib.MqttAttribute!, attrib);
-            }
+            var attrib = source.Symbol.TryGetMappingParameterAttribute(param, source.Owner);
+            if (attrib is null)
+                continue;
+            else if (string.IsNullOrEmpty(attrib.Value))
+                throw new ArgumentNullException($"Specified attribute '{paramAttrib.PlcAttribute}' has no value!");
+            else
+                yield return (param, paramAttrib.MqttAttribute!, attrib);
         }
         yield break;
     }
