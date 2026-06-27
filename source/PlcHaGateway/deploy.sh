@@ -233,6 +233,20 @@ read_secret_prompt_default() {
     fi
 }
 
+print_settings_summary() {
+    echo "Existing settings detected in $DEFAULT_APPSETTINGS:"
+    echo "  Home Assistant host : $LAST_HA_HOST"
+    echo "  Home Assistant port : $(read_default_value "$LAST_HA_PORT" "$DEFAULT_HA_PORT")"
+    echo "  Home Assistant SSL  : $(read_default_value "$LAST_HA_SSL" "$DEFAULT_HA_SSL")"
+    echo "  Home Assistant token: $(read_secret_prompt_default "$LAST_HA_TOKEN" "(unset)")"
+    echo "  MQTT host           : $LAST_MQTT_HOST"
+    echo "  MQTT user name      : $LAST_MQTT_USERNAME"
+    echo "  MQTT password       : $(read_secret_prompt_default "$LAST_MQTT_PASSWORD" "(unset)")"
+    echo "  PLC NetId           : $LAST_PLC_NETID"
+    echo "  PLC ADS port        : $(read_default_value "$LAST_PLC_PORT" "$DEFAULT_PLC_PORT")"
+    echo "  Cyclic update       : $(read_default_value "$LAST_CYCLIC_UPDATE" "$DEFAULT_CYCLIC_UPDATE")"
+}
+
 write_appsettings_file() {
     local file_path="$1"
 
@@ -338,17 +352,43 @@ LAST_PLC_NETID="$(read_json_value "$DEFAULT_APPSETTINGS" "Plc" "NetId")"
 LAST_PLC_PORT="$(read_json_value "$DEFAULT_APPSETTINGS" "Plc" "Port")"
 LAST_CYCLIC_UPDATE="$(read_json_value "$DEFAULT_APPSETTINGS" "" "CyclicUpdate")"
 
+EXISTING_SETTINGS=0
+if [ -n "$LAST_HA_HOST" ] && [ -n "$LAST_HA_TOKEN" ] && [ -n "$LAST_MQTT_HOST" ] && [ -n "$LAST_MQTT_USERNAME" ] && [ -n "$LAST_MQTT_PASSWORD" ] && [ -n "$LAST_PLC_NETID" ]; then
+    EXISTING_SETTINGS=1
+fi
+
 if [ "$APPSETTINGS_SOURCE" = "$DEFAULT_APPSETTINGS" ]; then
-    HA_HOST="$(prompt_with_default "Home Assistant host" "$(read_default_value "$LAST_HA_HOST" "$DEFAULT_HA_HOST")")"
-    HA_PORT="$(prompt_with_default "Home Assistant port" "$(read_default_value "$LAST_HA_PORT" "$DEFAULT_HA_PORT")")"
-    HA_SSL="$(normalize_boolean "$(prompt_with_default "Home Assistant SSL" "$(read_default_value "$LAST_HA_SSL" "$DEFAULT_HA_SSL")")")"
-    HA_TOKEN="$(prompt_with_display_default "Home Assistant token" "$(read_default_value "$LAST_HA_TOKEN" "$DEFAULT_HA_TOKEN")" "$(read_secret_prompt_default "$LAST_HA_TOKEN" "$DEFAULT_HA_TOKEN")")"
-    MQTT_HOST="$(prompt_with_default "MQTT host" "$(read_default_value "$LAST_MQTT_HOST" "$DEFAULT_MQTT_HOST")")"
-    MQTT_USERNAME="$(prompt_with_default "MQTT user name" "$(read_default_value "$LAST_MQTT_USERNAME" "$DEFAULT_MQTT_USERNAME")")"
-    MQTT_PASSWORD="$(prompt_with_display_default "MQTT password" "$(read_default_value "$LAST_MQTT_PASSWORD" "$DEFAULT_MQTT_PASSWORD")" "$(read_secret_prompt_default "$LAST_MQTT_PASSWORD" "$DEFAULT_MQTT_PASSWORD")")"
-    PLC_NETID="$(prompt_with_default "PLC NetId" "$(read_default_value "$LAST_PLC_NETID" "$DEFAULT_PLC_NETID")")"
-    PLC_PORT="$(prompt_with_default "PLC ADS port" "$(read_default_value "$LAST_PLC_PORT" "$DEFAULT_PLC_PORT")")"
-    CYCLIC_UPDATE="$(prompt_with_default "Cyclic update interval" "$(read_default_value "$LAST_CYCLIC_UPDATE" "$DEFAULT_CYCLIC_UPDATE")")"
+    REUSE_EXISTING=0
+    if [ "$EXISTING_SETTINGS" -eq 1 ]; then
+        print_settings_summary
+        if ask_yes_no "Use existing settings?" "yes"; then
+            REUSE_EXISTING=1
+        fi
+    fi
+
+    if [ "$REUSE_EXISTING" -eq 1 ]; then
+        HA_HOST="$LAST_HA_HOST"
+        HA_PORT="$(read_default_value "$LAST_HA_PORT" "$DEFAULT_HA_PORT")"
+        HA_SSL="$(normalize_boolean "$(read_default_value "$LAST_HA_SSL" "$DEFAULT_HA_SSL")")"
+        HA_TOKEN="$LAST_HA_TOKEN"
+        MQTT_HOST="$LAST_MQTT_HOST"
+        MQTT_USERNAME="$LAST_MQTT_USERNAME"
+        MQTT_PASSWORD="$LAST_MQTT_PASSWORD"
+        PLC_NETID="$LAST_PLC_NETID"
+        PLC_PORT="$(read_default_value "$LAST_PLC_PORT" "$DEFAULT_PLC_PORT")"
+        CYCLIC_UPDATE="$(read_default_value "$LAST_CYCLIC_UPDATE" "$DEFAULT_CYCLIC_UPDATE")"
+    else
+        HA_HOST="$(prompt_with_default "Home Assistant host" "$(read_default_value "$LAST_HA_HOST" "$DEFAULT_HA_HOST")")"
+        HA_PORT="$(prompt_with_default "Home Assistant port" "$(read_default_value "$LAST_HA_PORT" "$DEFAULT_HA_PORT")")"
+        HA_SSL="$(normalize_boolean "$(prompt_with_default "Home Assistant SSL" "$(read_default_value "$LAST_HA_SSL" "$DEFAULT_HA_SSL")")")"
+        HA_TOKEN="$(prompt_with_display_default "Home Assistant token" "$(read_default_value "$LAST_HA_TOKEN" "$DEFAULT_HA_TOKEN")" "$(read_secret_prompt_default "$LAST_HA_TOKEN" "$DEFAULT_HA_TOKEN")")"
+        MQTT_HOST="$(prompt_with_default "MQTT host" "$(read_default_value "$LAST_MQTT_HOST" "$DEFAULT_MQTT_HOST")")"
+        MQTT_USERNAME="$(prompt_with_default "MQTT user name" "$(read_default_value "$LAST_MQTT_USERNAME" "$DEFAULT_MQTT_USERNAME")")"
+        MQTT_PASSWORD="$(prompt_with_display_default "MQTT password" "$(read_default_value "$LAST_MQTT_PASSWORD" "$DEFAULT_MQTT_PASSWORD")" "$(read_secret_prompt_default "$LAST_MQTT_PASSWORD" "$DEFAULT_MQTT_PASSWORD")")"
+        PLC_NETID="$(prompt_with_default "PLC NetId" "$(read_default_value "$LAST_PLC_NETID" "$DEFAULT_PLC_NETID")")"
+        PLC_PORT="$(prompt_with_default "PLC ADS port" "$(read_default_value "$LAST_PLC_PORT" "$DEFAULT_PLC_PORT")")"
+        CYCLIC_UPDATE="$(prompt_with_default "Cyclic update interval" "$(read_default_value "$LAST_CYCLIC_UPDATE" "$DEFAULT_CYCLIC_UPDATE")")"
+    fi
 
     write_appsettings_file "$DEFAULT_APPSETTINGS"
 fi
